@@ -1,0 +1,28 @@
+{
+  "name": "crypto-pouch",
+  "version": "1.0.0",
+  "description": "encrypted pouchdb/couchdb database",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/calvinmetcalf/crypto-pouch.git"
+  },
+  "keywords": [
+    "pouchdb",
+    "couchdb",
+    "encrypted"
+  ],
+  "author": "Calvin Metcalf",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/calvinmetcalf/crypto-pouch/issues"
+  },
+  "homepage": "https://github.com/calvinmetcalf/crypto-pouch",
+  "dependencies": {
+    "chacha": "^1.1.0",
+    "pouchdb-promise": "0.0.0"
+  }
+}
