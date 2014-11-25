@@ -45,7 +45,7 @@ function cryptoInit(password, modP) {
       outgoing: decrypt
     });
     db.removeCrypto = function () {
-      key.fill(0);
+      randomize(key);
       turnedOff = true;
     };
     if (public) {
@@ -98,6 +98,14 @@ function cryptoInit(password, modP) {
     out._id = doc._id;
     out._rev = doc._rev;
     return out;
+  }
+}
+function randomize(buf) {
+  var len = buf.length;
+  var data = crypto.randomBytes(len);
+  var i = -1;
+  while (++i < len) {
+    buf[i] = data[i];
   }
 }
 exports.filter = filter;
