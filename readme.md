@@ -7,8 +7,10 @@ encrypted pouchdb plugin
 db.crypto(password[, diffieHellman?]).then(function (publicKey) {
   // is all set up
 });
-```
 
+db.removeCrypto();
+// will no longer encrypt decrypt your data
+```
 If you replicate to another database it will decrypt before sending it to the external one, make sure that one has a password set as well if you want it encrypted too.
 
 Curently encrypts with Chacha20-Poly1305, this will likely be changed to AES256-GCM when node 0.12.0 drops.

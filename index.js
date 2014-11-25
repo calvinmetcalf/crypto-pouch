@@ -23,6 +23,7 @@ function cryptoInit(password, modP) {
     public = df.getPublicKey();
     password = df.computeSecret(password);
   }
+  var turnedOff = false;
   return db.get(configId).catch(function (err) {
     if (err.status === 404) {
       var doc = {
@@ -43,11 +44,18 @@ function cryptoInit(password, modP) {
       incoming: encrypt,
       outgoing: decrypt
     });
+    db.removeCrypto = function () {
+      key.fill(0);
+      turnedOff = true;
+    };
     if (public) {
       return public;
     }
   });
   function encrypt(doc) {
+    if (turnedOff) {
+      return doc;
+    }
     var id, rev;
     if ('_id' in doc) {
       id = doc._id;
@@ -76,6 +84,9 @@ function cryptoInit(password, modP) {
     return outDoc;
   }
   function decrypt(doc) {
+    if (turnedOff) {
+      return doc;
+    }
     var decipher = chacha.createDecipher(key, new Buffer(doc.nonce, 'hex'));
     decipher.setAAD(new Buffer(doc._id));
     decipher.setAuthTag(new Buffer(doc.tag, 'hex'));
