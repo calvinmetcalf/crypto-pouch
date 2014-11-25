@@ -3,7 +3,6 @@ var chacha = require('chacha');
 var PouchPromise = require('pouchdb-promise');
 var configId = '_local/crypto';
 var filter = require('filter-pouch').filter;
-var uuid = require('node-uuid');
 function genKey(password, salt) {
   return new PouchPromise(function (resolve, reject) {
     crypto.pbkdf2(password, salt, 1000, 256/8, function (err, key) {
@@ -15,10 +14,15 @@ function genKey(password, salt) {
     });
   });
 }
-function cryptoInit(password) {
+function cryptoInit(password, modP) {
   var db = this;
-  var key;
-  
+  var key, public;
+  if (typeof modP === 'string') {
+    var df = crypto.getDiffieHellman(modP);
+    df.generateKeys();
+    public = df.getPublicKey();
+    password = df.computeSecret(password);
+  }
   return db.get(configId).catch(function (err) {
     if (err.status === 404) {
       var doc = {
@@ -35,10 +39,13 @@ function cryptoInit(password) {
   }).then(function (_key) {
     password = null;
     key = _key;
-    return db.filter({
+    db.filter({
       incoming: encrypt,
       outgoing: decrypt
     });
+    if (public) {
+      return public;
+    }
   });
   function encrypt(doc) {
     var id, rev;
