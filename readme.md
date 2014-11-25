@@ -1,4 +1,4 @@
-crypto pouch
+crypto pouch [![Build Status](https://travis-ci.org/calvinmetcalf/crypto-pouch.svg)](https://travis-ci.org/calvinmetcalf/crypto-pouch)
 ===
 
 encrypted pouchdb plugin
