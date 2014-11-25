@@ -4,7 +4,7 @@ crypto pouch
 encrypted pouchdb plugin
 
 ```js
-db.crypto('password');
-db.cryptoPut(doc, id[, rev]);
-db.cryptoGet(id);
+db.crypto('password').then(function () {
+  // is all set up
+});
 ```
