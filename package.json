@@ -24,7 +24,6 @@
   "dependencies": {
     "chacha": "^1.1.0",
     "filter-pouch": "^0.1.2",
-    "node-uuid": "^1.4.1",
     "pouchdb-promise": "0.0.0"
   },
   "devDependencies": {
