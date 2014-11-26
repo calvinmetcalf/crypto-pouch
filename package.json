@@ -4,7 +4,9 @@
   "description": "encrypted pouchdb/couchdb database",
   "main": "index.js",
   "scripts": {
-    "test": "node test.js | tspec"
+    "test": "node test.js | tspec",
+    "build": "browserify ./ >  bundle.js",
+    "min": "browserify ./ | uglifyjs -mc > bundle.min.js"
   },
   "repository": {
     "type": "git",
@@ -27,9 +29,11 @@
     "pouchdb-promise": "0.0.0"
   },
   "devDependencies": {
+    "browserify": "^6.3.3",
     "memdown": "^1.0.0",
     "pouchdb": "^3.1.0",
     "tap-spec": "^2.1.0",
-    "tape": "^3.0.3"
+    "tape": "^3.0.3",
+    "uglify-js": "^2.4.15"
   }
 }

@@ -114,5 +114,9 @@ function randomize(buf) {
     buf[i] = data[i];
   }
 }
+
+if (typeof window !== 'undefined' && window.PouchDB) {
+  window.PouchDB.plugin(module.exports);
+}
 exports.filter = filter;
 exports.crypto = cryptoInit;
