@@ -15,7 +15,7 @@ If you replicate to another database it will decrypt before sending it to
 the external one, make sure that one has a password set as well if you want 
 it encrypted too.
 
-Currently encrypts with Chacha20-Poly1305, this will likely be changed 
+Currently encrypts with Chacha20-Poly1305, this may be changed 
 to AES256-GCM when node 0.12.0 drops.
 
 If you change the name of a document, it will throw an error when you try 
