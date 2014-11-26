@@ -17,12 +17,6 @@ function genKey(password, salt) {
 function cryptoInit(password, modP) {
   var db = this;
   var key, public;
-  if (typeof modP === 'string') {
-    var df = crypto.getDiffieHellman(modP);
-    df.generateKeys();
-    public = df.getPublicKey();
-    password = df.computeSecret(password);
-  }
   var turnedOff = false;
   return db.get(configId).catch(function (err) {
     if (err.status === 404) {
@@ -36,6 +30,18 @@ function cryptoInit(password, modP) {
     }
     throw err;
   }).then(function (doc) {
+    var dh;
+    if (typeof modP === 'string') {
+      dh = crypto.getDiffieHellman(modP);
+      dh.generateKeys();
+      public = dh.getPublicKey();
+      password = dh.computeSecret(password);
+    } else if (Buffer.isBuffer(modP)) {
+      dh = crypto.createDiffieHellman(modP);
+      dh.generateKeys();
+      public = dh.getPublicKey();
+      password = dh.computeSecret(password);
+    }
     return genKey(password, new Buffer(doc.salt, 'hex'));
   }).then(function (_key) {
     password = null;
