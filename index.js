@@ -3,7 +3,7 @@ var randomBytes = require('randombytes');
 var chacha = require('chacha');
 var PouchPromise = require('pouchdb-promise');
 var configId = '_local/crypto';
-var filter = require('filter-pouch').filter;
+var transform = require('transform-pouch').transform;
 var pubEnc = require('public-encrypt');
 var uuid = require('node-uuid');
 var pbkdf2 = require('pbkdf2').pbkdf2;
@@ -57,7 +57,7 @@ function cryptoInit(password) {
   }).then(function (_key) {
     password = null;
     key = _key;
-    db.filter({
+    transform.call(db, {
       incoming: encrypt,
       outgoing: decrypt
     });
@@ -130,5 +130,4 @@ function randomize(buf) {
 if (typeof window !== 'undefined' && window.PouchDB) {
   window.PouchDB.plugin(module.exports);
 }
-exports.filter = filter;
 exports.crypto = cryptoInit;
