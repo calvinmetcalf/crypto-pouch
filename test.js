@@ -19,6 +19,8 @@ test('basic', function (t) {
     t.ok(doc.nonce, 'has nonce');
     t.ok(doc.tag, 'has tag');
     t.ok(doc.data, 'has data');
+  }).catch(function (e) {
+    console.log('nooo!', e.stack);
   });
 });
 test('reopen', function (t) {

@@ -82,7 +82,7 @@ function cryptoInit(password) {
       delete doc._rev;
     }
     var nonce = randomBytes(12);
-    var data = JSON.stringify(doc);
+    var data = new Buffer(JSON.stringify(doc));
     var outDoc = {
       _id: id,
       nonce: nonce.toString('hex')
