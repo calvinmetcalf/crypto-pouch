@@ -25,12 +25,12 @@
   "homepage": "https://github.com/calvinmetcalf/crypto-pouch",
   "dependencies": {
     "chacha": "^2.0.0",
-    "transform-pouch": "^1.0.0",
+    "create-ecdh": "^2.0.0",
     "node-uuid": "^1.4.3",
     "pbkdf2": "^3.0.3",
     "pouchdb-promise": "0.0.0",
-    "public-encrypt": "^2.0.0",
-    "randombytes": "^2.0.1"
+    "randombytes": "^2.0.1",
+    "transform-pouch": "^1.0.0"
   },
   "devDependencies": {
     "browserify": "^6.3.3",

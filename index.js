@@ -4,7 +4,8 @@ var chacha = require('chacha');
 var PouchPromise = require('pouchdb-promise');
 var configId = '_local/crypto';
 var transform = require('transform-pouch').transform;
-var pubEnc = require('public-encrypt');
+var createECDH = require('create-ecdh');
+var CURVE = 'secp256k1';
 var uuid = require('node-uuid');
 var pbkdf2 = require('pbkdf2').pbkdf2;
 function genKey(password, salt) {
@@ -29,7 +30,8 @@ function cryptoInit(password) {
       if (typeof password !== 'string') {
         doc = {
           _id: configId,
-          key: pubEnc.publicEncrypt(password, randomBytes(32)).toString('hex')
+          key: createECDH(CURVE).generateKeys('hex'),
+          salt: randomBytes(32).toString('hex')
         };
         key = doc.key;
       } else {
@@ -45,13 +47,12 @@ function cryptoInit(password) {
     throw err;
   }).then(function (doc) {
     if (typeof password !== 'string') {
-      if (key) {
-        randomize(password);
-        return key;
-      }
-      var _key = pubEnc.privateDecrypt(password, new Buffer(doc.key, 'hex'));
+      var ec = createECDH(CURVE);
+      ec.generateKeys();
+      ec.setPrivateKey(password);
+      var baseKey = ec.computeSecret(doc.key, 'hex');
       randomize(password);
-      return _key;
+      return genKey(baseKey, new Buffer(doc.salt, 'hex'));
     }
     return genKey(password, new Buffer(doc.salt, 'hex'));
   }).then(function (_key) {
