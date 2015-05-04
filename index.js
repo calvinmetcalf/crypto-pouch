@@ -1,11 +1,13 @@
+'use strict';
 var crypto = require('crypto');
 var chacha = require('chacha');
 var PouchPromise = require('pouchdb-promise');
 var configId = '_local/crypto';
 var filter = require('filter-pouch').filter;
+var uuid = require('node-uuid');
 function genKey(password, salt) {
   return new PouchPromise(function (resolve, reject) {
-    crypto.pbkdf2(password, salt, 1000, 256/8, function (err, key) {
+    crypto.pbkdf2(password, salt, 1000, 256 / 8, function (err, key) {
       password = null;
       if (err) {
         return reject(err);
@@ -16,7 +18,7 @@ function genKey(password, salt) {
 }
 function cryptoInit(password, modP) {
   var db = this;
-  var key, public;
+  var key, pub;
   var turnedOff = false;
   return db.get(configId).catch(function (err) {
     if (err.status === 404) {
@@ -34,12 +36,12 @@ function cryptoInit(password, modP) {
     if (typeof modP === 'string') {
       dh = crypto.getDiffieHellman(modP);
       dh.generateKeys();
-      public = dh.getPublicKey();
+      pub = dh.getPublicKey();
       password = dh.computeSecret(password);
     } else if (Buffer.isBuffer(modP)) {
       dh = crypto.createDiffieHellman(modP);
       dh.generateKeys();
-      public = dh.getPublicKey();
+      pub = dh.getPublicKey();
       password = dh.computeSecret(password);
     }
     return genKey(password, new Buffer(doc.salt, 'hex'));
@@ -54,8 +56,8 @@ function cryptoInit(password, modP) {
       randomize(key);
       turnedOff = true;
     };
-    if (public) {
-      return public;
+    if (pub) {
+      return pub;
     }
   });
   function encrypt(doc) {
@@ -115,8 +117,9 @@ function randomize(buf) {
   }
 }
 
+exports.filter = filter;
+exports.crypto = cryptoInit;
+
 if (typeof window !== 'undefined' && window.PouchDB) {
   window.PouchDB.plugin(module.exports);
 }
-exports.filter = filter;
-exports.crypto = cryptoInit;
