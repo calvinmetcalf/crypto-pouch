@@ -92,7 +92,7 @@ function cryptoInit(password, modP) {
     return outDoc;
   }
   function decrypt(doc) {
-    if (turnedOff) {
+    if (turnedOff || !doc.nonce) {
       return doc;
     }
     var decipher = chacha.createDecipher(key, new Buffer(doc.nonce, 'hex'));
