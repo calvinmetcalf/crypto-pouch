@@ -3,7 +3,7 @@ var crypto = require('crypto');
 var chacha = require('chacha');
 var PouchPromise = require('pouchdb-promise');
 var configId = '_local/crypto';
-var filter = require('filter-pouch').filter;
+var transform = require('transform-pouch').transform;
 var uuid = require('node-uuid');
 function genKey(password, salt) {
   return new PouchPromise(function (resolve, reject) {
@@ -48,7 +48,7 @@ function cryptoInit(password, modP) {
   }).then(function (_key) {
     password = null;
     key = _key;
-    db.filter({
+    db.transform({
       incoming: encrypt,
       outgoing: decrypt
     });
@@ -92,7 +92,7 @@ function cryptoInit(password, modP) {
     return outDoc;
   }
   function decrypt(doc) {
-    if (turnedOff || !doc.nonce) {
+    if (turnedOff || !doc.nonce || !doc._id || !doc.tag || !doc.data) {
       return doc;
     }
     var decipher = chacha.createDecipher(key, new Buffer(doc.nonce, 'hex'));
@@ -117,7 +117,7 @@ function randomize(buf) {
   }
 }
 
-exports.filter = filter;
+exports.transform = transform;
 exports.crypto = cryptoInit;
 
 if (typeof window !== 'undefined' && window.PouchDB) {
