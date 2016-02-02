@@ -1,6 +1,7 @@
 var test = require('tape');
 var PouchDB = require('pouchdb');
 var memdown = require('memdown');
+var Promise = require('pouchdb-promise');
 var crypto = require('crypto');
 PouchDB.plugin(require('./'));
 test('basic', function (t) {
