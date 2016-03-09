@@ -6,11 +6,11 @@ Plugin to encrypt a PouchDB/CouchDB database.
 ```js
 var db = new PouchDB('my_db');
 
-db.crypto(password).then(function (publicKey) {
-  // all done, docs should be transparently encrypted/decrypted
-});
+db.crypto(password);
+// all done, docs should be transparently encrypted/decrypted
 
-db.removeCrypto(); // will no longer encrypt decrypt your data
+db.removeCrypto();
+// will no longer encrypt decrypt your data
 ```
 
 It currently encrypts with the [Chacha20-Poly1305](https://github.com/calvinmetcalf/chacha20poly1305) algorithm, but this may be changed
