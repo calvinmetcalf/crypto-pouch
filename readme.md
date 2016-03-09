@@ -7,7 +7,7 @@ Plugin to encrypt a PouchDB/CouchDB database.
 var db = new PouchDB('my_db');
 
 db.crypto(password).then(function (publicKey) {
-  // all done, you got a public key
+  // all done, docs should be transparently encrypted/decrypted
 });
 
 db.removeCrypto(); // will no longer encrypt decrypt your data
@@ -106,77 +106,4 @@ db.get(id).then(function (doc) {
   out._rev = doc._rev;
   return out;
 });
-```
-
-Diffie Hellman
-===
-
-Diffie Hellman is an algorithm that allows 2 parties to create a secure key while only communicating via public channels.  I'm not sure how useful this option will be in practice but I have a vague notion of how it might be useful.
-
-For instance suppose Arthur needed some data from Beatrix but they could only communicate over twitter and pastebin. Arthur could run in node (version 0.11 or higher)
-
-```js
-var crypto = require('crypto');
-var dh = crypto.getDiffieHellman('modp14');
-dh.generateKeys();
-console.log('public', dh.getPublicKey('hex'));
-console.log('private', dh.getPrivateKey('hex'));
-```
-
-Arthur could then save his private key and post on pastebin the public key and `modp14`.
-
-Beatrix then creates a pouchdb with the cryto plugin and opens it with
-
-```js
-db.crypto(new Buffer('the public key', 'hex'), 'modp14').then(function (public) {
-  console.log('public', public.toString('hex'));
-  // fill it up with data
-});
-```
-
-then Beatrix could zip up the leveldb folder and include a note with the public key, and post it somewhere.
-
-Arthur could then run
-
-```js
-var crypto = require('crypto');
-var dh = crypto.createDiffieHellman(crypto.getDiffieHellman('modp14').getPrime());
-// the above throws an error in node 0.10 due to a bug
-dh.setPrivateKey('private key from earlier', 'hex');
-dh.generateKeys();
-var secret = dh.computeSecret('public key from Beatrix', 'hex');
-```
-
-and Arthur could then use that to open the database.
-
-To run it in node 0.10 Arthur would need to generate a custom prime with
-
-```js
-var crypto = require('crypto');
-var dh = crypto.createDiffieHellman(512);
-// this can be very slow
-dh.generateKeys();
-console.log('public', dh.getPublicKey('hex'));
-console.log('private', dh.getPrivateKey('hex'));
-console.log('prime', dh.getPrime('hex'));
-```
-
-and send the prime to Beatrix who would run
-
-```js
-db.crypto(new Buffer('the public key', 'hex'), new Buffer('prime', 'hex')).then(function (public) {
-  console.log('public', public.toString('hex'));
-  // fill it up with data
-});
-```
-
-and Arthur would run
-
-```js
-var crypto = require('crypto');
-var dh = crypto.createDiffieHellman(new Buffer('prime', 'hex'));
-// the above throws an error in node 0.10 due to a bug
-dh.setPrivateKey('private key from earlier', 'hex');
-dh.generateKeys();
-var secret = dh.computeSecret('public key from Beatrix', 'hex');
 ```
