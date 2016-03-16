@@ -16,6 +16,8 @@ db.removeCrypto(); // will no longer encrypt decrypt your data
 It currently encrypts with the [Chacha20-Poly1305](https://github.com/calvinmetcalf/chacha20poly1305) algorithm, but this may be changed 
 to AES256-GCM when Node 0.12.0 drops.
 
+**Note**: Due to performance reasons this module does not encrypt attachments ([#18](https://github.com/calvinmetcalf/crypto-pouch/pull/18))
+
 Usage
 -------
 
