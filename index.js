@@ -64,7 +64,7 @@ function cryptoInit(password, modP) {
     if (turnedOff) {
       return doc;
     }
-    var id, rev;
+    var id, rev, attachments;
     if ('_id' in doc) {
       id = doc._id;
       delete doc._id;
@@ -75,6 +75,10 @@ function cryptoInit(password, modP) {
       rev = doc._rev;
       delete doc._rev;
     }
+    if ('_attachments' in doc) {
+      attachments = doc._attachments;
+      delete doc._attachments;
+    }
     var nonce = crypto.randomBytes(12);
     var data = JSON.stringify(doc);
     var outDoc = {
@@ -83,6 +87,9 @@ function cryptoInit(password, modP) {
     };
     if (rev) {
       outDoc._rev = rev;
+    }
+    if (attachments) {
+      outDoc._attachments = attachments;
     }
     var cipher = chacha.createCipher(key, nonce);
     cipher.setAAD(new Buffer(id));
@@ -105,6 +112,7 @@ function cryptoInit(password, modP) {
     out = JSON.parse(out);
     out._id = doc._id;
     out._rev = doc._rev;
+    out._attachments = doc._attachments;
     return out;
   }
 }

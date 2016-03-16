@@ -139,3 +139,28 @@ test('changes', function (t) {
     t.error(e);
   });
 });
+test('attachments', function (t) {
+  t.plan(1);
+  var dbName = 'six';
+  var db = new PouchDB(dbName, {db: memdown});
+  db.crypto('password').then(function () {
+    return db.put({
+      _id: 'id-12345678',
+      _attachments: {
+        'att.txt': {
+          content_type: 'text/plain',
+          data: 'TGVnZW5kYXJ5IGhlYXJ0cywgdGVhciB1cyBhbGwgYXBhcnQKTWFrZS' +
+                'BvdXIgZW1vdGlvbnMgYmxlZWQsIGNyeWluZyBvdXQgaW4gbmVlZA=='
+        }
+      }
+    })
+  }).then(function () {
+    return db.get('id-12345678', {
+      attachments: true,
+      binary: true
+    })
+  }).then(function (doc) {
+    t.ok(Buffer.isBuffer(doc._attachments['att.txt'].data), 'returns _attachtments as Buffers')
+  })
+  .catch(t.error)
+})
