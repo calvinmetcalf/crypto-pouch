@@ -30,7 +30,7 @@
     "transform-pouch": "^1.0.2"
   },
   "devDependencies": {
-    "browserify": "^6.3.3",
+    "browserify": "^13.0.0",
     "memdown": "^1.0.0",
     "pouchdb": "^5.2.1",
     "tap-spec": "^2.1.0",
