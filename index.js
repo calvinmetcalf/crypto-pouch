@@ -1,5 +1,6 @@
 'use strict';
-var crypto = require('crypto');
+var pbkdf2 = require('pbkdf2');
+var randomBytes = require('randombytes');
 var chacha = require('chacha');
 var PouchPromise = require('pouchdb-promise');
 var configId = '_local/crypto';
@@ -7,7 +8,7 @@ var transform = require('transform-pouch').transform;
 var uuid = require('node-uuid');
 function genKey(password, salt) {
   return new PouchPromise(function (resolve, reject) {
-    crypto.pbkdf2(password, salt, 1000, 256 / 8, function (err, key) {
+    pbkdf2(password, salt, 1000, 256 / 8, function (err, key) {
       password = null;
       if (err) {
         return reject(err);
@@ -16,50 +17,63 @@ function genKey(password, salt) {
     });
   });
 }
-function cryptoInit(password, modP) {
+function cryptoInit(password) {
   var db = this;
   var key, pub;
   var turnedOff = false;
-  return db.get(configId).catch(function (err) {
-    if (err.status === 404) {
-      var doc = {
-        _id: configId,
-        salt: crypto.randomBytes(16).toString('hex')
+  var pending = db.get(configId).then(function (doc){
+    if (!doc.salt) {
+      throw {
+        status: 'invalid',
+        doc: doc
       };
+    }
+    return doc;
+  }).catch(function (err) {
+    var doc;
+    if (err.status === 404) {
+      doc = {
+        _id: configId,
+        salt: randomBytes(16).toString('hex')
+      };
+    } else if (err.status === 'invalid' && err.doc) {
+      doc = err.doc;
+      doc.salt = randomBytes(16).toString('hex');
+    }
+    if (doc) {
       return db.put(doc).then(function () {
         return doc;
       });
     }
     throw err;
   }).then(function (doc) {
-    var dh;
-    if (typeof modP === 'string') {
-      dh = crypto.getDiffieHellman(modP);
-      dh.generateKeys();
-      pub = dh.getPublicKey();
-      password = dh.computeSecret(password);
-    } else if (Buffer.isBuffer(modP)) {
-      dh = crypto.createDiffieHellman(modP);
-      dh.generateKeys();
-      pub = dh.getPublicKey();
-      password = dh.computeSecret(password);
-    }
     return genKey(password, new Buffer(doc.salt, 'hex'));
   }).then(function (_key) {
     password = null;
-    key = _key;
-    db.transform({
-      incoming: encrypt,
-      outgoing: decrypt
-    });
-    db.removeCrypto = function () {
+    if (turnedOff) {
       randomize(key);
-      turnedOff = true;
-    };
-    if (pub) {
-      return pub;
+    } else {
+      key = _key;
     }
   });
+  db.transform({
+    incoming: function (doc) {
+      return pending.then(function (doc) {
+        return encrypt(doc);
+      });
+    },
+    outgoing: function (doc) {
+      return pending.then(function (doc) {
+        return decrypt(doc);
+      });
+    }
+  });
+  db.removeCrypto = function () {
+    if (key) {
+      randomize(key);
+    }
+    turnedOff = true;
+  };
   function encrypt(doc) {
     if (turnedOff) {
       return doc;
@@ -75,7 +89,7 @@ function cryptoInit(password, modP) {
       rev = doc._rev;
       delete doc._rev;
     }
-    var nonce = crypto.randomBytes(12);
+    var nonce = randomBytes(12);
     var data = JSON.stringify(doc);
     var outDoc = {
       _id: id,
@@ -110,7 +124,7 @@ function cryptoInit(password, modP) {
 }
 function randomize(buf) {
   var len = buf.length;
-  var data = crypto.randomBytes(len);
+  var data = randomBytes(len);
   var i = -1;
   while (++i < len) {
     buf[i] = data[i];
