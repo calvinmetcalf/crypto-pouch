@@ -8,9 +8,8 @@ test('basic', function (t) {
   t.plan(4);
   var dbName = 'one';
   var db = new PouchDB(dbName, {db: memdown});
-  db.crypto('password').then(function () {
-    return db.put({foo: 'bar'}, 'baz');
-  }).then(function () {
+  db.crypto('password').
+  db.put({foo: 'bar'}, 'baz').then(function () {
     return db.get('baz');
   }).then(function (resp) {
     t.equals(resp.foo, 'bar', 'decrypts data');
@@ -28,9 +27,8 @@ test('reopen', function (t) {
   t.plan(1);
   var dbName = 'one';
   var db = new PouchDB(dbName, {db: memdown});
-  db.crypto('password').then(function () {
-    return db.get('baz');
-  }).then(function (resp) {
+  db.crypto('password').
+  db.get('baz').then(function (resp) {
     t.equals(resp.foo, 'bar', 'decrypts data');
   });
 });
@@ -108,9 +106,8 @@ test('changes', function (t) {
   db.changes({ live: true,  include_docs: true}).on('change', function (d) {
     t.ok(true, 'changes called');
   })
-  db.crypto('password').then(function () {
-    return db.put({foo: 'bar'}, 'baz');
-  }).then(function () {
+  db.crypto('password')
+  db.put({foo: 'bar'}, 'baz').then(function () {
     return db.get('baz');
   }).then(function (resp) {
     t.equals(resp.foo, 'bar', 'decrypts data');

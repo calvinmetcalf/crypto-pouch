@@ -26,7 +26,9 @@
   "dependencies": {
     "chacha": "^2.1.0",
     "node-uuid": "^1.4.3",
+    "pbkdf2": "^3.0.4",
     "pouchdb-promise": "0.0.0",
+    "randombytes": "^2.0.3",
     "transform-pouch": "^1.0.2"
   },
   "devDependencies": {
