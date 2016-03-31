@@ -3,9 +3,16 @@ var crypto = require('crypto');
 var chacha = require('chacha');
 var PouchPromise = require('pouchdb-promise');
 var configId = '_local/crypto';
+var cryptoCheckId = '_local/cryptoCheck';
+var cryptoCheckVal = 'cryptoCheck';
 var transform = require('transform-pouch').transform;
 var uuid = require('node-uuid');
-function genKey(password, salt) {
+
+function InvalidPasswordException () {
+  this.name = 'InvalidPasswordException';
+}
+
+function genKey (password, salt) {
   return new PouchPromise(function (resolve, reject) {
     crypto.pbkdf2(password, salt, 1000, 256 / 8, function (err, key) {
       password = null;
@@ -16,7 +23,7 @@ function genKey(password, salt) {
     });
   });
 }
-function cryptoInit(password, modP) {
+function cryptoInit (password, modP) {
   var db = this;
   var key, pub;
   var turnedOff = false;
@@ -56,11 +63,39 @@ function cryptoInit(password, modP) {
       randomize(key);
       turnedOff = true;
     };
-    if (pub) {
-      return pub;
-    }
+
+    // a document to test if we can successfully decrypt
+    var cryptoCheckDoc = {
+      _id: cryptoCheckId,
+      val: cryptoCheckVal
+    };
+    return db.get(cryptoCheckId).catch(function (err) {
+      // if the check document doesn't exist, this is the first time we're encrypting this DB, add the document if it isn't there,
+      // must manually encrypt, because pouchdb.tranform() doesn't operate on _local documents
+      // but we want this to remain a local document, so it isn't replicated, etc.
+      return db.put(encrypt(cryptoCheckDoc)).then(function () {
+        return cryptoCheckDoc;
+      });
+    }).then(function (doc) {
+      // this will run even if we just put it in, but it should work just fine
+      return decrypt(doc);
+    }).catch(function (err) {
+      // first, catch a JSON parse error in the decrypt function
+      if (err.name === 'SyntaxError') {
+        throw new InvalidPasswordException();
+      }
+    }).then(function (_cryptoCheckDoc) {
+      // if, somehow, the decrypted doc is valid JSON, make sure it matches the expected one
+      if (_cryptoCheckDoc.val !== cryptoCheckDoc.val) {
+        throw new InvalidPasswordException();
+      }
+    }).then(function () {
+      if (pub) {
+        return pub;
+      }
+    });
   });
-  function encrypt(doc) {
+  function encrypt (doc) {
     if (turnedOff) {
       return doc;
     }
@@ -91,7 +126,7 @@ function cryptoInit(password, modP) {
     outDoc.tag = cipher.getAuthTag().toString('hex');
     return outDoc;
   }
-  function decrypt(doc) {
+  function decrypt (doc) {
     if (turnedOff || !doc.nonce || !doc._id || !doc.tag || !doc.data) {
       return doc;
     }
@@ -108,7 +143,7 @@ function cryptoInit(password, modP) {
     return out;
   }
 }
-function randomize(buf) {
+function randomize (buf) {
   var len = buf.length;
   var data = crypto.randomBytes(len);
   var i = -1;

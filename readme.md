@@ -45,6 +45,7 @@ and the password is interpreted as a Diffie-Hellman public key. If so, the publi
 for use with the database is returned; you can use that to calculate the shared secret 
 which is needed for subsequently opening the data set.
 
+If the given password is invalid, throws an InvalidPasswordException().
 
 ### db.removeCrypto()
 
