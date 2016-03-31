@@ -34,6 +34,16 @@ test('reopen', function (t) {
     t.equals(resp.foo, 'bar', 'decrypts data');
   });
 });
+test('wrong_pass', function (t) {
+  t.plan(1);
+  var dbName = 'one';
+  var db = new PouchDB(dbName, {db: memdown});
+  db.crypto('bad_password').then(function (resp) {
+    t.fail('opened database with bad password')
+  }).catch(function (r) {
+    t.equals(r.name, 'InvalidPasswordException', ' fails setting up invalid password.')
+  })
+});
 var pub, dh;
 test('dh', function (t) {
   t.plan(5);
