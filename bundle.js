@@ -24548,10 +24548,22 @@ function genKey(password, salt) {
     });
   });
 }
-function cryptoInit(password, modP) {
+function cryptoInit(password, options) {
   var db = this;
   var key, pub;
   var turnedOff = false;
+  var ignore = ['_id', '_rev']
+  var modP
+
+  if (typeof options === 'string' || Buffer.isBuffer(options)) {
+    modP = options
+  }
+  if (options && options.ignore) {
+    ignore = ignore.concat(options.ignore)
+  }
+  if (options && options.modP) {
+    modP = options.modP
+  }
   return db.get(configId).catch(function (err) {
     if (err.status === 404) {
       var doc = {
@@ -24596,35 +24608,28 @@ function cryptoInit(password, modP) {
     if (turnedOff) {
       return doc;
     }
-    var id, rev, attachments;
-    if ('_id' in doc) {
-      id = doc._id;
-      delete doc._id;
-    } else {
-      id = uuid.v4();
-    }
-    if ('_rev' in doc) {
-      rev = doc._rev;
-      delete doc._rev;
-    }
-    if ('_attachments' in doc) {
-      attachments = doc._attachments;
-      delete doc._attachments;
-    }
     var nonce = crypto.randomBytes(12);
-    var data = JSON.stringify(doc);
     var outDoc = {
-      _id: id,
       nonce: nonce.toString('hex')
-    };
-    if (rev) {
-      outDoc._rev = rev;
     }
-    if (attachments) {
-      outDoc._attachments = attachments;
+    // for loop performs better than .forEach etc
+    for (var i = 0, len = ignore.length; i < len; i++) {
+      outDoc[ignore[i]] = doc[ignore[i]]
+      delete doc[ignore[i]]
     }
+    if (!outDoc._id) {
+      outDoc._id = uuid.v4()
+    }
+
+    // Encrypting attachments is complicated
+    // https://github.com/calvinmetcalf/crypto-pouch/pull/18#issuecomment-186402231
+    if (doc._attachments) {
+      throw new Error('Attachments cannot be encrypted. Use {ignore: "_attachments"} option')
+    }
+
+    var data = JSON.stringify(doc);
     var cipher = chacha.createCipher(key, nonce);
-    cipher.setAAD(new Buffer(id));
+    cipher.setAAD(new Buffer(outDoc._id));
     outDoc.data = cipher.update(data).toString('hex');
     cipher.final();
     outDoc.tag = cipher.getAuthTag().toString('hex');
@@ -24642,9 +24647,9 @@ function cryptoInit(password, modP) {
     // parse it AFTER calling final
     // you don't want to parse it if it has been manipulated
     out = JSON.parse(out);
-    out._id = doc._id;
-    out._rev = doc._rev;
-    out._attachments = doc._attachments;
+    for (var i = 0, len = ignore.length; i < len; i++) {
+      out[ignore[i]] = doc[ignore[i]]
+    }
     return out;
   }
 }

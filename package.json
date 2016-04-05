@@ -32,9 +32,9 @@
   "devDependencies": {
     "browserify": "^13.0.0",
     "memdown": "^1.0.0",
-    "pouchdb": "^5.2.1",
+    "pouchdb": "^5.3.1",
     "tap-spec": "^4.1.1",
-    "tape": "^4.4.0",
-    "uglify-js": "^2.4.15"
+    "tape": "^4.5.1",
+    "uglify-js": "^2.6.2"
   }
 }
