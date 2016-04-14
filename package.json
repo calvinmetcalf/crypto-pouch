@@ -29,7 +29,7 @@
     "pbkdf2": "^3.0.4",
     "pouchdb-promise": "0.0.0",
     "randombytes": "^2.0.3",
-    "transform-pouch": "^1.0.2"
+    "transform-pouch": "^1.1.0"
   },
   "devDependencies": {
     "browserify": "^13.0.0",
