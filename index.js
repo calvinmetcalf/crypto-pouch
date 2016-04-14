@@ -8,7 +8,7 @@ var transform = require('transform-pouch').transform;
 var uuid = require('node-uuid');
 function genKey(password, salt) {
   return new PouchPromise(function (resolve, reject) {
-    pbkdf2(password, salt, 1000, 256 / 8, function (err, key) {
+    pbkdf2.pbkdf2(password, salt, 1000, 256 / 8, function (err, key) {
       password = null;
       if (err) {
         return reject(err);
@@ -58,12 +58,12 @@ function cryptoInit(password) {
   });
   db.transform({
     incoming: function (doc) {
-      return pending.then(function (doc) {
+      return pending.then(function () {
         return encrypt(doc);
       });
     },
     outgoing: function (doc) {
-      return pending.then(function (doc) {
+      return pending.then(function () {
         return decrypt(doc);
       });
     }
