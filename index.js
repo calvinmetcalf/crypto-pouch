@@ -74,7 +74,7 @@ function cryptoInit(password) {
     }
     turnedOff = true;
   };
-  return pending;
+
   function encrypt(doc) {
     if (turnedOff) {
       return doc;
