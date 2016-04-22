@@ -16,6 +16,8 @@ db.removeCrypto();
 It currently encrypts with the [Chacha20-Poly1305](https://github.com/calvinmetcalf/chacha20poly1305) algorithm, but this may be changed
 to AES256-GCM when Node 0.12.0 drops.
 
+**Note**: Attachments cannot be encrypted at this point. Use `{ignore: '_attachments'}` to leave attachments unencrypted. Also note that `db.putAttachment` / `db.getAttachment` are not supported. Use `db.put` and `db.get({binary: true, attachment: true})` instead. ([#18](https://github.com/calvinmetcalf/crypto-pouch/issues/13))
+
 Usage
 -------
 
@@ -36,9 +38,14 @@ API
 --------
 
 
-### db.crypto(password)
+### db.crypto(password [, options])
 
 Set up encryption on the database.
+
+If the second argument is an object:
+
+- `options.ignore`  
+  String or Array of Strings of properties that will not be encrypted.  
 
 
 ### db.removeCrypto()
