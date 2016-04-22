@@ -17,10 +17,16 @@ function genKey(password, salt) {
     });
   });
 }
-function cryptoInit(password) {
+function cryptoInit(password, options) {
   var db = this;
   var key, pub;
   var turnedOff = false;
+  var ignore = ['_id', '_rev']
+
+  if (options && options.ignore) {
+    ignore = ignore.concat(options.ignore)
+  }
+  
   var pending = db.get(configId).then(function (doc){
     if (!doc.salt) {
       throw {
@@ -76,31 +82,28 @@ function cryptoInit(password) {
   };
 
   function encrypt(doc) {
-    if (turnedOff) {
-      return doc;
-    }
-    var id, rev;
-    if ('_id' in doc) {
-      id = doc._id;
-      delete doc._id;
-    } else {
-      id = uuid.v4();
-    }
-    if ('_rev' in doc) {
-      rev = doc._rev;
-      delete doc._rev;
-    }
-    var nonce = randomBytes(12);
-    var data = JSON.stringify(doc);
+    var nonce = randomBytes(12)
     var outDoc = {
-      _id: id,
       nonce: nonce.toString('hex')
     };
-    if (rev) {
-      outDoc._rev = rev;
+    // for loop performs better than .forEach etc
+    for (var i = 0, len = ignore.length; i < len; i++) {
+      outDoc[ignore[i]] = doc[ignore[i]]
+      delete doc[ignore[i]]
     }
+    if (!outDoc._id) {
+      outDoc._id = uuid.v4()
+    }
+
+    // Encrypting attachments is complicated
+    // https://github.com/calvinmetcalf/crypto-pouch/pull/18#issuecomment-186402231
+    if (doc._attachments) {
+      throw new Error('Attachments cannot be encrypted. Use {ignore: "_attachments"} option')
+    }
+
+    var data = JSON.stringify(doc);
     var cipher = chacha.createCipher(key, nonce);
-    cipher.setAAD(new Buffer(id));
+    cipher.setAAD(new Buffer(outDoc._id));
     outDoc.data = cipher.update(data).toString('hex');
     cipher.final();
     outDoc.tag = cipher.getAuthTag().toString('hex');
@@ -118,8 +121,9 @@ function cryptoInit(password) {
     // parse it AFTER calling final
     // you don't want to parse it if it has been manipulated
     out = JSON.parse(out);
-    out._id = doc._id;
-    out._rev = doc._rev;
+    for (var i = 0, len = ignore.length; i < len; i++) {
+      out[ignore[i]] = doc[ignore[i]]
+    }
     return out;
   }
 }
