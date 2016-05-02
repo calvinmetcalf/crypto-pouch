@@ -26,15 +26,17 @@
   "dependencies": {
     "chacha": "^2.1.0",
     "node-uuid": "^1.4.3",
+    "pbkdf2": "^3.0.4",
     "pouchdb-promise": "0.0.0",
-    "transform-pouch": "^1.0.2"
+    "randombytes": "^2.0.3",
+    "transform-pouch": "^1.1.0"
   },
   "devDependencies": {
     "browserify": "^13.0.0",
     "memdown": "^1.0.0",
-    "pouchdb": "^5.2.1",
-    "tap-spec": "^2.1.0",
-    "tape": "^3.0.3",
-    "uglify-js": "^2.4.15"
+    "pouchdb": "^5.3.1",
+    "tap-spec": "^4.1.1",
+    "tape": "^4.5.1",
+    "uglify-js": "^2.6.2"
   }
 }
