@@ -113,3 +113,17 @@ test('throws error when document has attachments', function (t) {
     t.ok(/Attachments cannot be encrypted/.test(e.message), 'throws error');
   })
 })
+test('wrong password', function (t) {
+  t.plan(1);
+  var dbName = 'nine';
+  var db = new PouchDB(dbName, {db: memdown});
+  db.crypto('correct')
+  db.put({foo: 'bar'}, 'baz').then(function () {
+    db.crypto('wrong')
+    return db.get('baz');
+  }).then(function (doc) {
+    t.fail('retrieved document with bad password')
+  }).catch(function (err) {
+    t.equals(err.name, 'InvalidPasswordError', 'returns correct error.')
+  })
+});
