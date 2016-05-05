@@ -6,6 +6,10 @@ var PouchPromise = require('pouchdb-promise');
 var configId = '_local/crypto';
 var transform = require('transform-pouch').transform;
 var uuid = require('node-uuid');
+function InvalidPasswordError () {
+  this.name = 'InvalidPasswordError';
+  this.message = 'unable to authenticate'
+}
 function genKey(password, salt) {
   return new PouchPromise(function (resolve, reject) {
     pbkdf2.pbkdf2(password, salt, 1000, 256 / 8, function (err, key) {
@@ -26,7 +30,7 @@ function cryptoInit(password, options) {
   if (options && options.ignore) {
     ignore = ignore.concat(options.ignore)
   }
-  
+
   var pending = db.get(configId).then(function (doc){
     if (!doc.salt) {
       throw {
@@ -70,7 +74,11 @@ function cryptoInit(password, options) {
     },
     outgoing: function (doc) {
       return pending.then(function () {
-        return decrypt(doc);
+        try {
+          return decrypt(doc);
+        } catch (err) {
+          throw new InvalidPasswordError();
+        }
       });
     }
   });
