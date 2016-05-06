@@ -113,3 +113,35 @@ test('throws error when document has attachments', function (t) {
     t.ok(/Attachments cannot be encrypted/.test(e.message), 'throws error');
   })
 })
+test('options.digest with sha512 default', function (t) {
+  t.plan(2);
+  var db1 = new PouchDB('ten', {db: memdown});
+  var db2 = new PouchDB('eleven', {db: memdown});
+
+  // simulate previously doc created with {digest: sha512}
+  var docSha256 = {
+    nonce: '619cf4a32914bc9b5ca26ddf',
+    data: 'bdc160a9ff46151af37ccd6e20',
+    tag: '1d082c358bc4cda3e8249bb0bb19eb3e',
+    _id: 'baz'
+  };
+  var cryptoDoc = {
+    _id: '_local/crypto',
+    salt: 'f5c011aea21f25b9e975dbacbe38d235'
+  };
+  db1.bulkDocs([docSha256, cryptoDoc]).then(function () {
+    db1.crypto('password');
+    return db1.get('baz');
+  }).then(function (doc) {
+    t.equals(doc.foo, 'bar', 'returns doc for same write / read digest');
+  });
+
+  db2.bulkDocs([docSha256, cryptoDoc]).then(function () {
+    db2.crypto('password', {digest: 'sha512'});
+    return db2.get('baz');
+  }).then(function () {
+    t.error('does not throw error');
+  }).catch(function (err) {
+    t.ok(err, 'throws error for different write / read digest');;
+  });
+});
