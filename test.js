@@ -145,3 +145,21 @@ test('options.digest with sha512 default', function (t) {
     t.ok(err, 'throws error for different write / read digest');;
   });
 });
+test('put with _deleted: true', function (t) {
+  t.plan(1);
+  var dbName = 'twelve';
+  var db = new PouchDB(dbName, {db: memdown});
+  db.crypto('password')
+  var doc = {_id: 'baz', foo: 'bar'}
+  db.put(doc).then(function (result) {
+    doc._rev = result.rev
+    doc._deleted = true
+    return db.put(doc)
+  }).then(function () {
+    return db.get('baz')
+  }).then(function () {
+    t.error('should not find doc after delete');
+  }).catch(function (err) {
+    t.equal(err.status, 404, 'cannot find doc after delete')
+  })
+})
