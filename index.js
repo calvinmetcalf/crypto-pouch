@@ -4,11 +4,12 @@ var randomBytes = require('randombytes');
 var chacha = require('chacha');
 var PouchPromise = require('pouchdb-promise');
 var configId = '_local/crypto';
+var defaultDigest = 'sha256';
 var transform = require('transform-pouch').transform;
 var uuid = require('node-uuid');
-function genKey(password, salt) {
+function genKey(password, salt, digest) {
   return new PouchPromise(function (resolve, reject) {
-    pbkdf2.pbkdf2(password, salt, 1000, 256 / 8, function (err, key) {
+    pbkdf2.pbkdf2(password, salt, 1000, 256 / 8, digest, function (err, key) {
       password = null;
       if (err) {
         return reject(err);
@@ -23,10 +24,16 @@ function cryptoInit(password, options) {
   var turnedOff = false;
   var ignore = ['_id', '_rev']
 
-  if (options && options.ignore) {
-    ignore = ignore.concat(options.ignore)
+  if (!options) {
+    options = {};
   }
-  
+  if (options.ignore) {
+    ignore = ignore.concat(options.ignore);
+  }
+  if (!options.digest) {
+    options.digest = defaultDigest;
+  }
+
   var pending = db.get(configId).then(function (doc){
     if (!doc.salt) {
       throw {
@@ -53,7 +60,7 @@ function cryptoInit(password, options) {
     }
     throw err;
   }).then(function (doc) {
-    return genKey(password, new Buffer(doc.salt, 'hex'));
+    return genKey(password, new Buffer(doc.salt, 'hex'), options.digest);
   }).then(function (_key) {
     password = null;
     if (turnedOff) {

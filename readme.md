@@ -46,6 +46,8 @@ If the second argument is an object:
 
 - `options.ignore`  
   String or Array of Strings of properties that will not be encrypted.  
+- `options.digest`  
+  Any of `sha1`, `sha256`, `sha512` (default).
 
 
 ### db.removeCrypto()
