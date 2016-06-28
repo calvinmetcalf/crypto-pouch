@@ -27,7 +27,7 @@ This plugin is hosted on npm. To use in Node.js:
 npm install crypto-pouch
 ```
 
-If you want to use it in the browser, download [the browserified version from wzrd.in](http://wzrd.in/bundle/crypto-pouch) and then include it after `pouchdb`:
+If you want to use it in the browser, download [the browserified version from wzrd.in](http://wzrd.in/standalone/crypto-pouch) and then include it after `pouchdb`:
 
 ```html
 <script src="pouchdb.js"></script>
