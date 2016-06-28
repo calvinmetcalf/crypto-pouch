@@ -180,6 +180,8 @@ test('pass key in explicitly', function (t) {
     return db.get('baz');
   }).then(function (doc) {
     t.equals(doc.foo, 'bar', 'returns doc for same write / read digest');
+  }).catch(function (e) {
+    t.error(e);
   });
 });
 test('plain options object', function (t) {
