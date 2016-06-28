@@ -13,8 +13,7 @@ db.removeCrypto();
 // will no longer encrypt decrypt your data
 ```
 
-It currently encrypts with the [Chacha20-Poly1305](https://github.com/calvinmetcalf/chacha20poly1305) algorithm, but this may be changed
-to AES256-GCM when Node 0.12.0 drops.
+It encrypts with the [Chacha20-Poly1305](https://github.com/calvinmetcalf/chacha20poly1305) algorithm.
 
 **Note**: Attachments cannot be encrypted at this point. Use `{ignore: '_attachments'}` to leave attachments unencrypted. Also note that `db.putAttachment` / `db.getAttachment` are not supported. Use `db.put` and `db.get({binary: true, attachment: true})` instead. ([#18](https://github.com/calvinmetcalf/crypto-pouch/issues/13))
 
@@ -48,7 +47,12 @@ If the second argument is an object:
   String or Array of Strings of properties that will not be encrypted.  
 - `options.digest`  
   Any of `sha1`, `sha256`, `sha512` (default).
-
+- `iterations`
+  How many iterations of pbkdf2 to perform, defaults to 100000 (1000 in older versions).
+- `key`
+  If passed a 32 byte buffer then this will be used as the key instead of it being generated from the password. **Warning** this buffer will be randomized when encryption is removed so pass in a copy of the buffer if that will be a problem.
+- `password`
+  You can pass the options object as the first param if you really want and pass in the password in as an option.
 
 ### db.removeCrypto()
 
@@ -64,10 +68,11 @@ it encrypted too.
 If you change the name of a document, it will throw an error when you try
 to decrypt it. If you manually move a document from one database to another,
 it will not decrypt correctly.  If you need to decrypt it a file manually
-you will find a local doc named `_local/crypto` in the database. This doc has a field
-named `salt` which is a hex-encoded buffer. Run on your password with that as salt
-for 1000 iterations to generate a 32 byte (256 bit) key; that is the key
-for decoding documents.
+you will find a local doc named `_local/crypto` in the database. This doc has
+fields named `salt` which is a hex-encoded buffer, `digest` which is a string,
+and `iterations` which is an integer to use. Run pbkdf2 your password with the
+salt, digest and iterations values from that document as the parameters generate
+a 32 byte (256 bit) key; that is the key for decoding documents.  If digest or iterations are not on the local document due to it being created with an older version of the library, use 'sha256' and 1000 respectively.
 
 Each document has 3 relevant fields: `data`, `nonce`, and `tag`.
 `nonce` is the initialization vector to give to chacha20 in addition to the key
@@ -84,7 +89,7 @@ Derive key from password and salt
 ```js
 db.get('_local/crypto').then(function (doc) {
   return new Promise(function (resolve, reject) {
-    crypto.pbkdf2(password, doc.salt, 1000, 256/8, function (err, key) {
+    crypto.pbkdf2(password, doc.salt, doc.iterations, 256/8, doc.digest, function (err, key) {
       if (err) {
         return reject(err);
       }
@@ -103,7 +108,7 @@ Decrypt a document
 var chacha = require('chacha');
 
 db.get(id).then(function (doc) {
-   var decipher = chacha.createDecipher(key, new Buffer(doc.nonce, 'hex'));
+  var decipher = chacha.createDecipher(key, new Buffer(doc.nonce, 'hex'));
   decipher.setAAD(new Buffer(doc._id));
   decipher.setAuthTag(new Buffer(doc.tag, 'hex'));
   var out = decipher.update(new Buffer(doc.data, 'hex')).toString();

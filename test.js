@@ -9,7 +9,7 @@ test('basic', function (t) {
   var dbName = 'one';
   var db = new PouchDB(dbName, {db: memdown});
   db.crypto('password');
-  db.put({foo: 'bar'}, 'baz').then(function () {
+  db.put({foo: 'bar', _id: 'baz'}).then(function () {
     return db.get('baz');
   }).then(function (resp) {
     t.equals(resp.foo, 'bar', 'decrypts data');
@@ -40,7 +40,7 @@ test('changes', function (t) {
     t.ok(true, 'changes called');
   })
   db.crypto('password');
-  db.put({foo: 'bar'}, 'baz').then(function () {
+  db.put({foo: 'bar', _id: 'baz'}).then(function () {
     return db.get('baz');
   }).then(function (resp) {
     t.equals(resp.foo, 'bar', 'decrypts data');
@@ -53,9 +53,11 @@ test('changes', function (t) {
     });
   }).then(function(d) {
     return db.put({
+      _id: d.id,
+      _rev: d.rev,
       once: 'more',
       with: 'feeling'
-    }, d.id, d.rev);
+    });
   }).then(function () {
     return db.allDocs({include_docs: true});
   }).then(function (resp) {
@@ -163,3 +165,39 @@ test('put with _deleted: true', function (t) {
     t.equal(err.status, 404, 'cannot find doc after delete')
   })
 })
+test('pass key in explicitly', function (t) {
+  t.plan(1);
+  var db = new PouchDB('thirteen', {db: memdown});
+
+  var ourDoc = {
+    nonce: '000000000000000000000000',
+    data: 'e42581d13a730258fadbe55e0e',
+    tag: 'b52f7f0f3e2926d7ee43f867d2c597e2',
+    _id: 'baz'
+  };
+  db.bulkDocs([ourDoc]).then(function () {
+    db.crypto({key: new Buffer('0000000000000000000000000000000000000000000000000000000000000000', 'hex')});
+    return db.get('baz');
+  }).then(function (doc) {
+    t.equals(doc.foo, 'bar', 'returns doc for same write / read digest');
+  });
+});
+test('plain options object', function (t) {
+  t.plan(4);
+  var dbName = 'fourteen';
+  var db = new PouchDB(dbName, {db: memdown});
+  db.crypto({password: 'password'});
+  db.put({_id: 'baz', foo: 'bar'}).then(function () {
+    return db.get('baz');
+  }).then(function (resp) {
+    t.equals(resp.foo, 'bar', 'decrypts data');
+    db.removeCrypto();
+    return db.get('baz');
+  }).then(function (doc) {
+    t.ok(doc.nonce, 'has nonce');
+    t.ok(doc.tag, 'has tag');
+    t.ok(doc.data, 'has data');
+  }).catch(function (e) {
+    t.error(e);
+  });
+});

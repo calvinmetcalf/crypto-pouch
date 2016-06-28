@@ -5,11 +5,13 @@ var chacha = require('chacha');
 var PouchPromise = require('pouchdb-promise');
 var configId = '_local/crypto';
 var defaultDigest = 'sha256';
+var defaultIterations = 100000;
+var previousIterations = 1000;
 var transform = require('transform-pouch').transform;
 var uuid = require('node-uuid');
-function genKey(password, salt, digest) {
+function genKey(password, salt, digest, iterations) {
   return new PouchPromise(function (resolve, reject) {
-    pbkdf2.pbkdf2(password, salt, 1000, 256 / 8, digest, function (err, key) {
+    pbkdf2.pbkdf2(password, salt, iterations, 256 / 8, digest, function (err, key) {
       password = null;
       if (err) {
         return reject(err);
@@ -23,52 +25,64 @@ function cryptoInit(password, options) {
   var key, pub;
   var turnedOff = false;
   var ignore = ['_id', '_rev', '_deleted']
-
   if (!options) {
     options = {};
+  }
+  if (password && typeof password === 'object') {
+    options = password;
+    password = password.password;
+    delete options.password;
   }
   if (options.ignore) {
     ignore = ignore.concat(options.ignore);
   }
-  if (!options.digest) {
-    options.digest = defaultDigest;
+  var pending;
+  if (Buffer.isBuffer(options.key) && options.key.length === 32) {
+    key = options.key;
+    pending = Promise.resolve();
+  } else {
+    var digest = options.digest || defaultDigest;
+    var iterations = options.iteration || defaultIterations;
+    pending = db.get(configId).then(function (doc){
+      if (!doc.salt) {
+        throw {
+          status: 'invalid',
+          doc: doc
+        };
+      }
+      return doc;
+    }).catch(function (err) {
+      var doc;
+      if (err.status === 404) {
+        doc = {
+          _id: configId,
+          salt: randomBytes(16).toString('hex'),
+          digest: digest,
+          iterations: iterations
+        };
+      } else if (err.status === 'invalid' && err.doc) {
+        doc = err.doc;
+        doc.salt = randomBytes(16).toString('hex');
+        doc.digest = digest;
+        doc.iterations = iterations;
+      }
+      if (doc) {
+        return db.put(doc).then(function () {
+          return doc;
+        });
+      }
+      throw err;
+    }).then(function (doc) {
+      return genKey(password, new Buffer(doc.salt, 'hex'), doc.digest || digest, doc.iterations || options.iteration || previousIterations);
+    }).then(function (_key) {
+      password = null;
+      if (turnedOff) {
+        randomize(key);
+      } else {
+        key = _key;
+      }
+    });
   }
-
-  var pending = db.get(configId).then(function (doc){
-    if (!doc.salt) {
-      throw {
-        status: 'invalid',
-        doc: doc
-      };
-    }
-    return doc;
-  }).catch(function (err) {
-    var doc;
-    if (err.status === 404) {
-      doc = {
-        _id: configId,
-        salt: randomBytes(16).toString('hex')
-      };
-    } else if (err.status === 'invalid' && err.doc) {
-      doc = err.doc;
-      doc.salt = randomBytes(16).toString('hex');
-    }
-    if (doc) {
-      return db.put(doc).then(function () {
-        return doc;
-      });
-    }
-    throw err;
-  }).then(function (doc) {
-    return genKey(password, new Buffer(doc.salt, 'hex'), options.digest);
-  }).then(function (_key) {
-    password = null;
-    if (turnedOff) {
-      randomize(key);
-    } else {
-      key = _key;
-    }
-  });
   db.transform({
     incoming: function (doc) {
       return pending.then(function () {
