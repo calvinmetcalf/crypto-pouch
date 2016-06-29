@@ -39,7 +39,7 @@ function cryptoInit(password, options) {
   var pending;
   if (Buffer.isBuffer(options.key) && options.key.length === 32) {
     key = options.key;
-    pending = Promise.resolve();
+    pending = PouchPromise.resolve();
   } else {
     var digest = options.digest || defaultDigest;
     var iterations = options.iteration || defaultIterations;
