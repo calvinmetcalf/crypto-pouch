@@ -2,7 +2,6 @@ var test = require('tape');
 var PouchDB = require('pouchdb');
 var memdown = require('memdown');
 var Promise = require('pouchdb-promise');
-var crypto = require('crypto');
 PouchDB.plugin(require('./'));
 test('basic', function (t) {
   t.plan(4);
@@ -184,6 +183,7 @@ test('pass key in explicitly', function (t) {
     t.error(e);
   });
 });
+
 test('plain options object', function (t) {
   t.plan(4);
   var dbName = 'fourteen';
@@ -199,6 +199,39 @@ test('plain options object', function (t) {
     t.ok(doc.nonce, 'has nonce');
     t.ok(doc.tag, 'has tag');
     t.ok(doc.data, 'has data');
+  }).catch(function (e) {
+    t.error(e);
+  });
+});
+test('get key explicitly', function (t) {
+  t.plan(3);
+  var db = new PouchDB('fifteen', {db: memdown});
+  var key;
+  var docs = [
+    { _id: '_local/crypto',
+      salt: '0dac47a196e46680a359c9c18da0bc83',
+      digest: 'sha256',
+      iterations: 100000}
+  ];
+  db.bulkDocs(docs).then(function () {
+    db.crypto('password', {
+      cb: function (err, resp) {
+        t.error(err);
+        key = resp.toString('base64');
+        t.equals(key, 'jr9j3Krslfck3UkxjiCNYI4hoKQWesoquw11yypC528=');
+      }
+    });
+    return db.put({
+      _id: 'baz',
+      foo: 'bar'
+    });
+  }).then(function () {
+    db.removeCrypto();
+    db.crypto({key: new Buffer(key, 'base64')});
+    return db.get('baz');
+  })
+  .then(function (doc) {
+    t.equals(doc.foo, 'bar', 'decrypts data');
   }).catch(function (e) {
     t.error(e);
   });

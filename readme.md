@@ -53,10 +53,12 @@ If the second argument is an object:
   If passed a 32 byte buffer then this will be used as the key instead of it being generated from the password. **Warning** this buffer will be randomized when encryption is removed so pass in a copy of the buffer if that will be a problem.
 - `password`
   You can pass the options object as the first param if you really want and pass in the password in as an option.
+- `cb`
+  A function you can pass in to get the derived key back called with 2 parameters, an error if there is one and the key if no error.  **Warning** this buffer will be randomized when encryption is removed copy it or convert it to a string if that will be a problem.
 
 ### db.removeCrypto()
 
-Disables encryption on the database.
+Disables encryption on the database and randomizes the key buffer.
 
 Details
 ===

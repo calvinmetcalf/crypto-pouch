@@ -9,6 +9,7 @@ var defaultIterations = 100000;
 var previousIterations = 1000;
 var transform = require('transform-pouch').transform;
 var uuid = require('node-uuid');
+function noop(){}
 function genKey(password, salt, digest, iterations) {
   return new PouchPromise(function (resolve, reject) {
     pbkdf2.pbkdf2(password, salt, iterations, 256 / 8, digest, function (err, key) {
@@ -22,7 +23,7 @@ function genKey(password, salt, digest, iterations) {
 }
 function cryptoInit(password, options) {
   var db = this;
-  var key, pub;
+  var key, cb;
   var turnedOff = false;
   var ignore = ['_id', '_rev', '_deleted']
   if (!options) {
@@ -35,6 +36,11 @@ function cryptoInit(password, options) {
   }
   if (options.ignore) {
     ignore = ignore.concat(options.ignore);
+  }
+  if(typeof options.cb === 'function') {
+    cb = options.cb;
+  } else {
+    cb = noop;
   }
   var pending;
   if (Buffer.isBuffer(options.key) && options.key.length === 32) {
@@ -81,6 +87,10 @@ function cryptoInit(password, options) {
       } else {
         key = _key;
       }
+      process.nextTick(cb, null, key);
+    }).catch(function (e) {
+      process.nextTick(cb, e);
+      throw e;
     });
   }
   db.transform({
