@@ -35,7 +35,7 @@ test('changes', function (t) {
   t.plan(7);
   var dbName = 'five';
   var db = new PouchDB(dbName, {db: memdown});
-  db.changes({ live: true,  include_docs: true}).on('change', function (d) {
+  db.changes({ live: true,  include_docs: true}).on('change', function () {
     t.ok(true, 'changes called');
   })
   db.crypto('password');
@@ -59,7 +59,7 @@ test('changes', function (t) {
     });
   }).then(function () {
     return db.allDocs({include_docs: true});
-  }).then(function (resp) {
+  }).then(function () {
     db.removeCrypto();
     return db.get('baz');
   }).then(function (doc) {
@@ -143,7 +143,7 @@ test('options.digest with sha512 default', function (t) {
   }).then(function () {
     t.error('does not throw error');
   }).catch(function (err) {
-    t.ok(err, 'throws error for different write / read digest');;
+    t.ok(err, 'throws error for different write / read digest');
   });
 });
 test('put with _deleted: true', function (t) {
