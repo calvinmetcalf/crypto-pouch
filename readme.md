@@ -15,7 +15,9 @@ db.removeCrypto();
 
 It encrypts with the [Chacha20-Poly1305](https://github.com/calvinmetcalf/chacha20poly1305) algorithm.
 
-**Note**: Attachments cannot be encrypted at this point. Use `{ignore: '_attachments'}` to leave attachments unencrypted. Also note that `db.putAttachment` / `db.getAttachment` are not supported. Use `db.put` and `db.get({binary: true, attachment: true})` instead. ([#18](https://github.com/calvinmetcalf/crypto-pouch/issues/13))
+**Note**: Attachments cannot be encrypted at this point. Use `{ignore: '_attachments'}` to leave attachments unencrypted. Also note that `db.putAttachment` / `db.getAttachment` are not supported. Use `db.put` and `db.get({binary: true, attachment: true})` instead. ([#18](https://github.com/calvinmetcalf/crypto-pouch/issues/13)).
+
+This only encrypts the contents of documents, NOT THE ID (or rev).  So if you have a document with the id `plan_to_screw_over_db_admin`, while this plugin will happily encrypt that document, that may not be as helpful as you'd want it to be.
 
 Usage
 -------
