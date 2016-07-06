@@ -87,9 +87,13 @@ function cryptoInit(password, options) {
       } else {
         key = _key;
       }
-      process.nextTick(cb, null, key);
+      process.nextTick(function () {
+        cb(null, key);
+      });
     }).catch(function (e) {
-      process.nextTick(cb, e);
+      process.nextTick(function (){
+        cb(e);
+      });
       throw e;
     });
   }
