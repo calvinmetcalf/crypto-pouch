@@ -126,30 +126,46 @@ function cryptoInit(password, options) {
     }
 
     var data = JSON.stringify(doc);
-    var cipher = chacha.createCipher(key, nonce);
-    cipher.setAAD(new Buffer(outDoc._id));
-    outDoc.data = cipher.update(data).toString('hex');
-    cipher.final();
-    outDoc.tag = cipher.getAuthTag().toString('hex');
-    return outDoc;
+    return encryptChacha(data, key, nonce, new Buffer(outDoc._id)).then(function (resp) {
+      outDoc.tag = resp.tag;
+      outDoc.data = resp.data;
+      return outDoc;
+    })
   }
   function decrypt(doc) {
     if (turnedOff || !doc.nonce || !doc._id || !doc.tag || !doc.data) {
       return doc;
     }
-    var decipher = chacha.createDecipher(key, new Buffer(doc.nonce, 'hex'));
-    decipher.setAAD(new Buffer(doc._id));
-    decipher.setAuthTag(new Buffer(doc.tag, 'hex'));
-    var out = decipher.update(new Buffer(doc.data, 'hex')).toString();
-    decipher.final();
-    // parse it AFTER calling final
-    // you don't want to parse it if it has been manipulated
-    out = JSON.parse(out);
-    for (var i = 0, len = ignore.length; i < len; i++) {
-      out[ignore[i]] = doc[ignore[i]]
-    }
-    return out;
+    return decryptChacha(new Buffer(doc.data, 'hex'), key, new Buffer(doc.nonce, 'hex'), new Buffer(doc._id), new Buffer(doc.tag, 'hex')).then(function (outData) {
+      var out = JSON.parse(outData);
+      for (var i = 0, len = ignore.length; i < len; i++) {
+        out[ignore[i]] = doc[ignore[i]]
+      }
+      return out;
+    });
   }
+}
+function encryptChacha(data, key, nonce, aad) {
+  return new PouchPromise(function (yes) {
+    var outDoc = {};
+    var cipher = chacha.createCipher(key, nonce);
+    cipher.setAAD(aad);
+    outDoc.data = cipher.update(data).toString('hex');
+    cipher.final();
+    outDoc.tag = cipher.getAuthTag().toString('hex');
+    yes(outDoc);
+  });
+}
+function decryptChacha(data, key, nonce, aad, tag) {
+  return new PouchPromise(function (yes) {
+    var decipher = chacha.createDecipher(key, nonce);
+    decipher.setAAD(aad);
+    decipher.setAuthTag(tag);
+    var out = decipher.update(data).toString();
+    decipher.final();
+    yes(out);
+  });
+
 }
 function randomize(buf) {
   var len = buf.length;
