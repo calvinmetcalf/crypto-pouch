@@ -1,15 +1,14 @@
 'use strict';
-var pbkdf2 = require('pbkdf2');
-var randomBytes = require('randombytes');
-var chacha = require('chacha');
+var crypto = require('crypto');
 var PouchPromise = require('pouchdb-promise');
-var configId = '_local/crypto';
-var defaultDigest = 'sha256';
+var configId = '_local/crypto2';
+var defaultDigest = 'sha512';
+var defaultAlgorithm = 'aes-256-gcm';
 var transform = require('transform-pouch').transform;
 var uuid = require('node-uuid');
 function genKey(password, salt, digest) {
   return new PouchPromise(function (resolve, reject) {
-    pbkdf2.pbkdf2(password, salt, 1000, 256 / 8, digest, function (err, key) {
+    crypto.pbkdf2(password, salt, 1000, 256 / 8, digest, function (err, key) {
       password = null;
       if (err) {
         return reject(err);
@@ -20,9 +19,9 @@ function genKey(password, salt, digest) {
 }
 function cryptoInit(password, options) {
   var db = this;
-  var key, pub;
+  var key, algorithm;
   var turnedOff = false;
-  var ignore = ['_id', '_rev', '_deleted']
+  var ignore = ['_id', '_rev', '_deleted'];
 
   if (!options) {
     options = {};
@@ -32,6 +31,9 @@ function cryptoInit(password, options) {
   }
   if (!options.digest) {
     options.digest = defaultDigest;
+  }
+  if (!options.algorithm) {
+    options.algorithm = defaultAlgorithm;
   }
 
   var pending = db.get(configId).then(function (doc){
@@ -47,11 +49,13 @@ function cryptoInit(password, options) {
     if (err.status === 404) {
       doc = {
         _id: configId,
-        salt: randomBytes(16).toString('hex')
+        algorithm: options.algorithm,
+        digest: options.digest,
+        salt: crypto.randomBytes(16).toString('hex')
       };
     } else if (err.status === 'invalid' && err.doc) {
       doc = err.doc;
-      doc.salt = randomBytes(16).toString('hex');
+      doc.salt = crypto.randomBytes(16).toString('hex');
     }
     if (doc) {
       return db.put(doc).then(function () {
@@ -60,7 +64,8 @@ function cryptoInit(password, options) {
     }
     throw err;
   }).then(function (doc) {
-    return genKey(password, new Buffer(doc.salt, 'hex'), options.digest);
+    algorithm = doc.algorithm;
+    return genKey(password, new Buffer(doc.salt, 'hex'), doc.digest);
   }).then(function (_key) {
     password = null;
     if (turnedOff) {
@@ -89,7 +94,7 @@ function cryptoInit(password, options) {
   };
 
   function encrypt(doc) {
-    var nonce = randomBytes(12)
+    var nonce = crypto.randomBytes(12)
     var outDoc = {
       nonce: nonce.toString('hex')
     };
@@ -109,10 +114,10 @@ function cryptoInit(password, options) {
     }
 
     var data = JSON.stringify(doc);
-    var cipher = chacha.createCipher(key, nonce);
+    var cipher = crypto.createCipheriv(algorithm, key, nonce);
     cipher.setAAD(new Buffer(outDoc._id));
-    outDoc.data = cipher.update(data).toString('hex');
-    cipher.final();
+    outDoc.data = cipher.update(data, 'utf8', 'hex');
+    outDoc.data += cipher.final('hex');
     outDoc.tag = cipher.getAuthTag().toString('hex');
     return outDoc;
   }
@@ -120,11 +125,11 @@ function cryptoInit(password, options) {
     if (turnedOff || !doc.nonce || !doc._id || !doc.tag || !doc.data) {
       return doc;
     }
-    var decipher = chacha.createDecipher(key, new Buffer(doc.nonce, 'hex'));
+    var decipher = crypto.createDecipheriv(algorithm, key, new Buffer(doc.nonce, 'hex'));
     decipher.setAAD(new Buffer(doc._id));
     decipher.setAuthTag(new Buffer(doc.tag, 'hex'));
-    var out = decipher.update(new Buffer(doc.data, 'hex')).toString();
-    decipher.final();
+    var out = decipher.update(doc.data, 'hex', 'utf8');
+    out += decipher.final('utf8');
     // parse it AFTER calling final
     // you don't want to parse it if it has been manipulated
     out = JSON.parse(out);
@@ -136,7 +141,7 @@ function cryptoInit(password, options) {
 }
 function randomize(buf) {
   var len = buf.length;
-  var data = randomBytes(len);
+  var data = crypto.randomBytes(len);
   var i = -1;
   while (++i < len) {
     buf[i] = data[i];
