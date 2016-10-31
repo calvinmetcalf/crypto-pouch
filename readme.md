@@ -13,8 +13,7 @@ db.removeCrypto();
 // will no longer encrypt decrypt your data
 ```
 
-It currently encrypts with the [Chacha20-Poly1305](https://github.com/calvinmetcalf/chacha20poly1305) algorithm, but this may be changed
-to AES256-GCM when Node 0.12.0 drops.
+It currently encrypts with AES256-GCM and thus requires Node >= 0.12.0.
 
 **Note**: Attachments cannot be encrypted at this point. Use `{ignore: '_attachments'}` to leave attachments unencrypted. Also note that `db.putAttachment` / `db.getAttachment` are not supported. Use `db.put` and `db.get({binary: true, attachment: true})` instead. ([#18](https://github.com/calvinmetcalf/crypto-pouch/issues/13))
 
@@ -44,9 +43,9 @@ Set up encryption on the database.
 
 If the second argument is an object:
 
-- `options.ignore`  
-  String or Array of Strings of properties that will not be encrypted.  
-- `options.digest`  
+- `options.ignore`
+  String or Array of Strings of properties that will not be encrypted.
+- `options.digest`
   Any of `sha1`, `sha256`, `sha512` (default).
 
 
@@ -70,7 +69,7 @@ for 1000 iterations to generate a 32 byte (256 bit) key; that is the key
 for decoding documents.
 
 Each document has 3 relevant fields: `data`, `nonce`, and `tag`.
-`nonce` is the initialization vector to give to chacha20 in addition to the key
+`nonce` is the initialization vector to give to AES256 in addition to the key
 you generated. Pass the document `_id` as additional authenticated data and the tag
 as the auth tag and then decrypt the data.  If it throws an error, then you either
 screwed up or somebody modified the data.
@@ -82,7 +81,7 @@ Derive key from password and salt
 ---
 
 ```js
-db.get('_local/crypto').then(function (doc) {
+db.get('_local/crypto2').then(function (doc) {
   return new Promise(function (resolve, reject) {
     crypto.pbkdf2(password, doc.salt, 1000, 256/8, function (err, key) {
       if (err) {
@@ -100,14 +99,14 @@ Decrypt a document
 ---
 
 ```js
-var chacha = require('chacha');
+var crypto = require('crypto');
 
 db.get(id).then(function (doc) {
-   var decipher = chacha.createDecipher(key, new Buffer(doc.nonce, 'hex'));
+  var decipher = crypto.createDecipheriv('aes-256-gcm', key, new Buffer(doc.nonce, 'hex'));
   decipher.setAAD(new Buffer(doc._id));
   decipher.setAuthTag(new Buffer(doc.tag, 'hex'));
-  var out = decipher.update(new Buffer(doc.data, 'hex')).toString();
-  decipher.final();
+  var out = decipher.update(doc.data, 'hex', 'utf8');
+  out += decipher.final('utf8');
   // parse it AFTER calling final
   // you don't want to parse it if it has been manipulated
   out = JSON.parse(out);

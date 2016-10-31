@@ -1,6 +1,6 @@
 {
   "name": "crypto-pouch",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "encrypted pouchdb/couchdb database",
   "main": "index.js",
   "scripts": {
@@ -24,17 +24,15 @@
   },
   "homepage": "https://github.com/calvinmetcalf/crypto-pouch",
   "dependencies": {
-    "chacha": "^2.1.0",
+    "browserify": "^13.1.1",
     "node-uuid": "^1.4.3",
-    "pbkdf2": "^3.0.4",
-    "pouchdb-promise": "0.0.0",
-    "randombytes": "^2.0.3",
+    "pouchdb-promise": "6.0.7",
     "transform-pouch": "^1.1.0"
   },
   "devDependencies": {
     "browserify": "^13.0.0",
     "memdown": "^1.0.0",
-    "pouchdb": "^5.3.1",
+    "pouchdb": "^6.0.7",
     "tap-spec": "^4.1.1",
     "tape": "^4.5.1",
     "uglify-js": "^2.6.2"

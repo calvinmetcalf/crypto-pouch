@@ -9,7 +9,7 @@ test('basic', function (t) {
   var dbName = 'one';
   var db = new PouchDB(dbName, {db: memdown});
   db.crypto('password');
-  db.put({foo: 'bar'}, 'baz').then(function () {
+  db.put({foo: 'bar', _id: 'baz'}).then(function () {
     return db.get('baz');
   }).then(function (resp) {
     t.equals(resp.foo, 'bar', 'decrypts data');
@@ -40,7 +40,7 @@ test('changes', function (t) {
     t.ok(true, 'changes called');
   })
   db.crypto('password');
-  db.put({foo: 'bar'}, 'baz').then(function () {
+  db.put({foo: 'bar', _id: 'baz'}).then(function () {
     return db.get('baz');
   }).then(function (resp) {
     t.equals(resp.foo, 'bar', 'decrypts data');
@@ -54,8 +54,9 @@ test('changes', function (t) {
   }).then(function(d) {
     return db.put({
       once: 'more',
-      with: 'feeling'
-    }, d.id, d.rev);
+      with: 'feeling',
+      _id: d.id,
+      _rev: d.rev});
   }).then(function () {
     return db.allDocs({include_docs: true});
   }).then(function (resp) {
@@ -114,35 +115,29 @@ test('throws error when document has attachments', function (t) {
   })
 })
 test('options.digest with sha512 default', function (t) {
-  t.plan(2);
-  var db1 = new PouchDB('ten', {db: memdown});
-  var db2 = new PouchDB('eleven', {db: memdown});
+  t.plan(1);
+  var db = new PouchDB('ten', {db: memdown});
 
-  // simulate previously doc created with {digest: sha512}
+  // simulate previously doc created with {digest: 'sha512'}
   var docSha256 = {
-    nonce: '619cf4a32914bc9b5ca26ddf',
-    data: 'bdc160a9ff46151af37ccd6e20',
-    tag: '1d082c358bc4cda3e8249bb0bb19eb3e',
+    nonce: '27860742f613568f2e1f3945',
+    data: 'b4f1c89c024092b84cb7de1304',
+    tag: 'b7b8397c65cea0e9203ff9a7069f3cc5',
     _id: 'baz'
   };
   var cryptoDoc = {
-    _id: '_local/crypto',
-    salt: 'f5c011aea21f25b9e975dbacbe38d235'
+    _id: '_local/crypto2',
+    algorithm: 'aes-256-gcm',
+    digest: 'sha512',
+    salt: '2bdfe3c9f12e80728fd9978e462e4d39'
   };
-  db1.bulkDocs([docSha256, cryptoDoc]).then(function () {
-    db1.crypto('password');
-    return db1.get('baz');
+  db.bulkDocs([docSha256, cryptoDoc]).then(function () {
+    db.crypto('password'/*, {digest: 'sha512'}*/);
+    return db.get('baz');
   }).then(function (doc) {
     t.equals(doc.foo, 'bar', 'returns doc for same write / read digest');
-  });
-
-  db2.bulkDocs([docSha256, cryptoDoc]).then(function () {
-    db2.crypto('password', {digest: 'sha512'});
-    return db2.get('baz');
-  }).then(function () {
-    t.error('does not throw error');
   }).catch(function (err) {
-    t.ok(err, 'throws error for different write / read digest');;
+    t.error(err, 'threw an error');
   });
 });
 test('put with _deleted: true', function (t) {
