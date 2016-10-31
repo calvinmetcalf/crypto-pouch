@@ -2,14 +2,13 @@ var test = require('tape');
 var PouchDB = require('pouchdb');
 var memdown = require('memdown');
 var Promise = require('pouchdb-promise');
-var crypto = require('crypto');
 PouchDB.plugin(require('./'));
 test('basic', function (t) {
   t.plan(4);
   var dbName = 'one';
   var db = new PouchDB(dbName, {db: memdown});
   db.crypto('password');
-  db.put({foo: 'bar'}, 'baz').then(function () {
+  db.put({foo: 'bar', _id: 'baz'}).then(function () {
     return db.get('baz');
   }).then(function (resp) {
     t.equals(resp.foo, 'bar', 'decrypts data');
@@ -36,11 +35,11 @@ test('changes', function (t) {
   t.plan(7);
   var dbName = 'five';
   var db = new PouchDB(dbName, {db: memdown});
-  db.changes({ live: true,  include_docs: true}).on('change', function (d) {
+  db.changes({ live: true,  include_docs: true}).on('change', function () {
     t.ok(true, 'changes called');
   })
   db.crypto('password');
-  db.put({foo: 'bar'}, 'baz').then(function () {
+  db.put({foo: 'bar', _id: 'baz'}).then(function () {
     return db.get('baz');
   }).then(function (resp) {
     t.equals(resp.foo, 'bar', 'decrypts data');
@@ -53,12 +52,14 @@ test('changes', function (t) {
     });
   }).then(function(d) {
     return db.put({
+      _id: d.id,
+      _rev: d.rev,
       once: 'more',
       with: 'feeling'
-    }, d.id, d.rev);
+    });
   }).then(function () {
     return db.allDocs({include_docs: true});
-  }).then(function (resp) {
+  }).then(function () {
     db.removeCrypto();
     return db.get('baz');
   }).then(function (doc) {
@@ -142,7 +143,7 @@ test('options.digest with sha512 default', function (t) {
   }).then(function () {
     t.error('does not throw error');
   }).catch(function (err) {
-    t.ok(err, 'throws error for different write / read digest');;
+    t.ok(err, 'throws error for different write / read digest');
   });
 });
 test('put with _deleted: true', function (t) {
@@ -163,3 +164,93 @@ test('put with _deleted: true', function (t) {
     t.equal(err.status, 404, 'cannot find doc after delete')
   })
 })
+test('pass key in explicitly', function (t) {
+  t.plan(1);
+  var db = new PouchDB('thirteen', {db: memdown});
+
+  var ourDoc = {
+    nonce: '000000000000000000000000',
+    data: 'e42581d13a730258fadbe55e0e',
+    tag: 'b52f7f0f3e2926d7ee43f867d2c597e2',
+    _id: 'baz'
+  };
+  db.bulkDocs([ourDoc]).then(function () {
+    db.crypto({key: new Buffer('0000000000000000000000000000000000000000000000000000000000000000', 'hex')});
+    return db.get('baz');
+  }).then(function (doc) {
+    t.equals(doc.foo, 'bar', 'returns doc for same write / read digest');
+  }).catch(function (e) {
+    t.error(e);
+  });
+});
+test('wrong password throws error', function (t) {
+  t.plan(1);
+  var db = new PouchDB('thirteen', {db: memdown});
+
+  var ourDoc = {
+    nonce: '000000000000000000000000',
+    data: 'e42581d13a730258fadbe55e0e',
+    tag: 'b52f7f0f3e2926d7ee43f867d2c597e2',
+    _id: 'baz'
+  };
+  db.bulkDocs([ourDoc]).then(function () {
+    db.crypto('broken');
+    return db.get('baz');
+  }).then(function (doc) {
+    t.notEqual(doc.foo, 'bar', 'returns doc for same write / read digest');
+  }).catch(function (e) {
+    t.ok(e);
+  });
+});
+test('plain options object', function (t) {
+  t.plan(4);
+  var dbName = 'fourteen';
+  var db = new PouchDB(dbName, {db: memdown});
+  db.crypto({password: 'password'});
+  db.put({_id: 'baz', foo: 'bar'}).then(function () {
+    return db.get('baz');
+  }).then(function (resp) {
+    t.equals(resp.foo, 'bar', 'decrypts data');
+    db.removeCrypto();
+    return db.get('baz');
+  }).then(function (doc) {
+    t.ok(doc.nonce, 'has nonce');
+    t.ok(doc.tag, 'has tag');
+    t.ok(doc.data, 'has data');
+  }).catch(function (e) {
+    t.error(e);
+  });
+});
+test('get key explicitly', function (t) {
+  t.plan(3);
+  var db = new PouchDB('fifteen', {db: memdown});
+  var key;
+  var docs = [
+    { _id: '_local/crypto',
+      salt: '0dac47a196e46680a359c9c18da0bc83',
+      digest: 'sha256',
+      iterations: 100000}
+  ];
+  db.bulkDocs(docs).then(function () {
+    db.crypto('password', {
+      cb: function (err, resp) {
+        t.error(err);
+        key = resp.toString('base64');
+        t.equals(key, 'jr9j3Krslfck3UkxjiCNYI4hoKQWesoquw11yypC528=');
+      }
+    });
+    return db.put({
+      _id: 'baz',
+      foo: 'bar'
+    });
+  }).then(function () {
+    db.removeCrypto();
+    db.crypto({key: new Buffer(key, 'base64')});
+    return db.get('baz');
+  })
+  .then(function (doc) {
+    t.equals(doc.foo, 'bar', 'decrypts data');
+  }).catch(function (e) {
+    t.error(e);
+  });
+});

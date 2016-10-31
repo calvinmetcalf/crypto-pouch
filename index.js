@@ -1,74 +1,100 @@
 'use strict';
-var pbkdf2 = require('pbkdf2');
+var pbkdf2 = require('native-crypto/pbkdf2');
 var randomBytes = require('randombytes');
-var chacha = require('chacha');
-var PouchPromise = require('pouchdb-promise');
 var configId = '_local/crypto';
+var chachaHelper = require('./chacha');
+var gcmHelper = require('./gcm');
 var defaultDigest = 'sha256';
+var defaultIterations = 100000;
+var previousIterations = 1000;
+var defaultAlgo = 'aes-gcm';
 var transform = require('transform-pouch').transform;
 var uuid = require('node-uuid');
-function genKey(password, salt, digest) {
-  return new PouchPromise(function (resolve, reject) {
-    pbkdf2.pbkdf2(password, salt, 1000, 256 / 8, digest, function (err, key) {
-      password = null;
-      if (err) {
-        return reject(err);
-      }
-      resolve(key);
-    });
-  });
-}
+function noop(){}
 function cryptoInit(password, options) {
   var db = this;
-  var key, pub;
+  var key, cb;
   var turnedOff = false;
   var ignore = ['_id', '_rev', '_deleted']
-
   if (!options) {
     options = {};
+  }
+  var algo;
+  if (password && typeof password === 'object') {
+    options = password;
+    password = password.password;
+    delete options.password;
   }
   if (options.ignore) {
     ignore = ignore.concat(options.ignore);
   }
-  if (!options.digest) {
-    options.digest = defaultDigest;
+  if(typeof options.cb === 'function') {
+    cb = options.cb;
+  } else {
+    cb = noop;
   }
-
-  var pending = db.get(configId).then(function (doc){
-    if (!doc.salt) {
-      throw {
-        status: 'invalid',
-        doc: doc
-      };
-    }
-    return doc;
-  }).catch(function (err) {
-    var doc;
-    if (err.status === 404) {
-      doc = {
-        _id: configId,
-        salt: randomBytes(16).toString('hex')
-      };
-    } else if (err.status === 'invalid' && err.doc) {
-      doc = err.doc;
-      doc.salt = randomBytes(16).toString('hex');
-    }
-    if (doc) {
-      return db.put(doc).then(function () {
-        return doc;
+  var pending;
+  if (Buffer.isBuffer(options.key) && options.key.length === 32) {
+    key = options.key;
+    pending = db.get(configId).catch(function () {
+      return {};
+    }).then(function (doc) {
+      algo = setAlgo(doc);
+    });
+  } else {
+    var digest = options.digest || defaultDigest;
+    var iterations = options.iteration || defaultIterations;
+    pending = db.get(configId).then(function (doc){
+      if (!doc.salt) {
+        throw {
+          status: 'invalid',
+          doc: doc
+        };
+      }
+      return doc;
+    }).catch(function (err) {
+      var doc;
+      if (err.status === 404) {
+        doc = {
+          _id: configId,
+          salt: randomBytes(16).toString('hex'),
+          digest: digest,
+          iterations: iterations,
+          algo: options.algorithm || defaultAlgo
+        };
+      } else if (err.status === 'invalid' && err.doc) {
+        doc = err.doc;
+        doc.salt = randomBytes(16).toString('hex');
+        doc.digest = digest;
+        doc.iterations = iterations;
+        doc.algo = options.algorithm || defaultAlgo;
+      }
+      if (doc) {
+        return db.put(doc).then(function () {
+          return doc;
+        });
+      }
+      throw err;
+    }).then(function (doc) {
+      algo = setAlgo(doc);
+      return pbkdf2(password, new Buffer(doc.salt, 'hex'), doc.iterations || options.iteration || previousIterations, 256 / 8, doc.digest || digest);
+    }).then(function (_key) {
+      password = null;
+      if (turnedOff) {
+        randomize(key);
+      } else {
+        key = _key;
+      }
+      process.nextTick(function () {
+        cb(null, key);
       });
-    }
-    throw err;
-  }).then(function (doc) {
-    return genKey(password, new Buffer(doc.salt, 'hex'), options.digest);
-  }).then(function (_key) {
-    password = null;
-    if (turnedOff) {
-      randomize(key);
-    } else {
-      key = _key;
-    }
-  });
+    }).catch(function (e) {
+      process.nextTick(function (){
+        cb(e);
+      });
+      throw e;
+    });
+  }
   db.transform({
     incoming: function (doc) {
       return pending.then(function () {
@@ -87,7 +113,17 @@ function cryptoInit(password, options) {
     }
     turnedOff = true;
   };
-
+  function setAlgo(doc) {
+    if (typeof doc.algo !== 'string') {
+      return chachaHelper;
+    } else if (doc.algo.toLowerCase().indexOf('chacha') > -1) {
+      return chachaHelper;
+    } else if (doc.algo.toLowerCase().indexOf('gcm') > -1) {
+      return gcmHelper;
+    } else {
+      throw new Error('invalid algo');
+    }
+  }
   function encrypt(doc) {
     var nonce = randomBytes(12)
     var outDoc = {
@@ -109,31 +145,26 @@ function cryptoInit(password, options) {
     }
 
     var data = JSON.stringify(doc);
-    var cipher = chacha.createCipher(key, nonce);
-    cipher.setAAD(new Buffer(outDoc._id));
-    outDoc.data = cipher.update(data).toString('hex');
-    cipher.final();
-    outDoc.tag = cipher.getAuthTag().toString('hex');
-    return outDoc;
+    return algo.encrypt(data, key, nonce, new Buffer(outDoc._id)).then(function (resp) {
+      outDoc.tag = resp.tag;
+      outDoc.data = resp.data;
+      return outDoc;
+    })
   }
   function decrypt(doc) {
     if (turnedOff || !doc.nonce || !doc._id || !doc.tag || !doc.data) {
       return doc;
     }
-    var decipher = chacha.createDecipher(key, new Buffer(doc.nonce, 'hex'));
-    decipher.setAAD(new Buffer(doc._id));
-    decipher.setAuthTag(new Buffer(doc.tag, 'hex'));
-    var out = decipher.update(new Buffer(doc.data, 'hex')).toString();
-    decipher.final();
-    // parse it AFTER calling final
-    // you don't want to parse it if it has been manipulated
-    out = JSON.parse(out);
-    for (var i = 0, len = ignore.length; i < len; i++) {
-      out[ignore[i]] = doc[ignore[i]]
-    }
-    return out;
+    return algo.decrypt(new Buffer(doc.data, 'hex'), key, new Buffer(doc.nonce, 'hex'), new Buffer(doc._id), new Buffer(doc.tag, 'hex')).then(function (outData) {
+      var out = JSON.parse(outData);
+      for (var i = 0, len = ignore.length; i < len; i++) {
+        out[ignore[i]] = doc[ignore[i]]
+      }
+      return out;
+    });
   }
 }
+
 function randomize(buf) {
   var len = buf.length;
   var data = randomBytes(len);
