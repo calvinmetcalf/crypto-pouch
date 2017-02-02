@@ -13,7 +13,7 @@ db.removeCrypto();
 // will no longer encrypt decrypt your data
 ```
 
-It encrypts with the AES-GCM using [native crypto]() which prefers the native version in node or or the web crypto version in the browser, falling back to the version from [crypto browserify](https://github.com/crypto-browserify/crypto-browserify) if no native version exists. [Chacha20-Poly1305](https://github.com/calvinmetcalf/chacha20poly1305) is also available and previous versions defaulted to this algorithm. You might consider using this if your app will primarily be used in browsers that don't support the web crypto api (e.g. safari).
+It encrypts with the AES-GCM using [native crypto]() which prefers the native version in node or the web crypto version in the browser, falling back to the version from [crypto browserify](https://github.com/crypto-browserify/crypto-browserify) if no native version exists. [Chacha20-Poly1305](https://github.com/calvinmetcalf/chacha20poly1305) is also available and previous versions defaulted to this algorithm. You might consider using this if your app will primarily be used in browsers that don't support the web crypto api (e.g. safari).
 
 **Note**: Attachments cannot be encrypted at this point. Use `{ignore: '_attachments'}` to leave attachments unencrypted. Also note that `db.putAttachment` / `db.getAttachment` are not supported. Use `db.put` and `db.get({binary: true, attachment: true})` instead. ([#18](https://github.com/calvinmetcalf/crypto-pouch/issues/13)).
 
