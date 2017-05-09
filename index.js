@@ -9,7 +9,7 @@ var defaultIterations = 100000;
 var previousIterations = 1000;
 var defaultAlgo = 'aes-gcm';
 var transform = require('transform-pouch').transform;
-var uuid = require('node-uuid');
+var uuid = require('uuid');
 function noop(){}
 function cryptoInit(password, options) {
   var db = this;

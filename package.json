@@ -26,10 +26,10 @@
   "dependencies": {
     "chacha": "^2.1.0",
     "native-crypto": "^1.5.2",
-    "node-uuid": "^1.4.3",
     "pouchdb-promise": "^6.1.0",
     "randombytes": "^2.0.3",
-    "transform-pouch": "^1.1.0"
+    "transform-pouch": "^1.1.0",
+    "uuid": "^3.0.1"
   },
   "devDependencies": {
     "browserify": "^13.0.0",
