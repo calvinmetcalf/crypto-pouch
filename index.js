@@ -34,6 +34,9 @@ function cryptoInit(password, options) {
     cb = noop;
   }
   var pending;
+  if (options.key && !Buffer.isBuffer(options.key) && options.key instanceof global.Uint8Array) {
+    options.key = new Buffer(options.key)
+  }
   if (Buffer.isBuffer(options.key) && options.key.length === 32) {
     key = options.key;
     pending = db.get(configId).catch(function () {
