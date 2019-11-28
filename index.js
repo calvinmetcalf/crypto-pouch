@@ -40,7 +40,18 @@ function cryptoInit(password, options) {
   if (Buffer.isBuffer(options.key) && options.key.length === 32) {
     key = options.key;
     pending = db.get(configId).catch(function () {
-      return {};
+      var digest = options.digest || defaultDigest;
+      var iterations = options.iteration || defaultIterations;
+      let doc = {
+        _id: configId,
+        salt: randomBytes(16).toString('hex'),
+        digest: digest,
+        iterations: iterations,
+        algo: options.algorithm || defaultAlgo
+      };
+
+      return doc;
+      
     }).then(function (doc) {
       algo = setAlgo(doc);
     });
