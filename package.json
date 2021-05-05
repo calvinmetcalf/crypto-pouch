@@ -25,9 +25,8 @@
   },
   "homepage": "https://github.com/calvinmetcalf/crypto-pouch",
   "dependencies": {
-    "transform-pouch": "^1.1.5",
-    "tweetnacl": "^1.0.3",
-    "tweetnacl-util": "^0.15.1"
+    "garbados-crypt": "^1.0.1-alpha",
+    "transform-pouch": "^1.1.5"
   },
   "devDependencies": {
     "browserify": "^17.0.0",
