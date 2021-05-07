@@ -1,7 +1,16 @@
 const Crypt = require('garbados-crypt')
 const { transform } = require('transform-pouch')
 
-const IGNORE = ['_id', '_rev', '_deleted', '_conflicts']
+const IGNORE = [
+  '_id',
+  '_rev',
+  '_conflicts',
+  '_deleted_conflicts',
+  '_deleted',
+  '_local_seq',
+  '_revisions',
+  '_revs_info'
+]
 
 module.exports = {
   transform,
