@@ -118,7 +118,10 @@ describe('crypto-pouch', function () {
   it('should accept crypto params as an object', async function () {
     this.db.removeCrypto()
     this.db.crypto({ password: PASSWORD })
-    await this.db.put(DOCS[0])
+    const doc = DOCS[0]
+    await this.db.put(doc)
+    const { hello } = await this.db.get(doc._id)
+    assert.equal(hello, 'world')
   })
 
   it('should fail to init with http adapter', async function () {
