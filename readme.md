@@ -1,148 +1,90 @@
-crypto pouch [![Build Status](https://travis-ci.org/calvinmetcalf/crypto-pouch.svg)](https://travis-ci.org/calvinmetcalf/crypto-pouch)
-===
+# Crypto-Pouch
 
-Plugin to encrypt a PouchDB/CouchDB database.
+[![CI](https://github.com/calvinmetcalf/crypto-pouch/actions/workflows/ci.yaml/badge.svg)](https://github.com/calvinmetcalf/crypto-pouch/actions/workflows/ci.yaml)
+[![NPM Version](https://img.shields.io/npm/v/crypto-pouch.svg?style=flat-square)](https://www.npmjs.com/package/crypto-pouch)
+[![JS Standard Style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/feross/standard)
+
+Plugin to encrypt a PouchDB database.
 
 ```js
-var db = new PouchDB('my_db');
+const PouchDB = require('pouchdb')
+PouchDB.plugin(require('crypto-pouch'))
 
-db.crypto(password);
-// all done, docs should be transparently encrypted/decrypted
+const db = new PouchDB('my_db')
 
-db.removeCrypto();
-// will no longer encrypt decrypt your data
+// init; after this, docs will be transparently en/decrypted
+db.crypto(password)
+
+// disables transparent en/decryption,
+// though encrypted docs remain encrypted
+db.removeCrypto()
 ```
 
-It encrypts with the AES-GCM using [native crypto](https://github.com/calvinmetcalf/native-crypto) which prefers the native version in node or the web crypto version in the browser, falling back to the version from [crypto browserify](https://github.com/crypto-browserify/crypto-browserify) if no native version exists. [Chacha20-Poly1305](https://github.com/calvinmetcalf/chacha20poly1305) is also available and previous versions defaulted to this algorithm. You might consider using this if your app will primarily be used in browsers that don't support the web crypto api (e.g. safari).
+Crypto-Pouch encrypts documents using [TweetNaCl.js](https://github.com/dchest/tweetnacl-js), an [audited](https://cure53.de/tweetnacl.pdf) encryption library. It uses the *xsalsa20-poly1305* algorithm.
 
 **Note**: Attachments cannot be encrypted at this point. Use `{ignore: '_attachments'}` to leave attachments unencrypted. Also note that `db.putAttachment` / `db.getAttachment` are not supported. Use `db.put` and `db.get({binary: true, attachment: true})` instead. ([#18](https://github.com/calvinmetcalf/crypto-pouch/issues/13)).
 
-This only encrypts the contents of documents, NOT THE ID (or rev).  So if you have a document with the id `plan_to_screw_over_db_admin`, while this plugin will happily encrypt that document, that may not be as helpful as you'd want it to be.
+This only encrypts the contents of documents, **not the \_id or \_rev, nor view keys and values**. This means that `_id` values always remain unencrypted, and any keys or values emitted by views are stored unencrypted as well. If you need total encryption at rest, consider using the PouchDB plugin [ComDB](https://github.com/garbados/comdb) instead.
 
-Usage
--------
+## Usage
 
-This plugin is hosted on npm. To use in Node.js:
+This plugin is hosted on [npm](http://npmjs.com/). To install it in your project:
 
 ```bash
-npm install crypto-pouch
+$ npm install crypto-pouch
 ```
 
-If you want to use it in the browser, download [the browserified version from wzrd.in](http://wzrd.in/standalone/crypto-pouch) and then include it after `pouchdb`:
-
-```html
-<script src="pouchdb.js"></script>
-<script src="pouchdb.crypto-pouch.js"></script>
-```
-
-API
---------
-
+## Usage
 
 ### db.crypto(password [, options])
 
 Set up encryption on the database.
 
-If the second argument is an object:
+- `password`: A string password, used to encrypt documents. Make sure it's good!
+- `options.ignore`: Array of strings of properties that will not be encrypted.
 
-- `options.ignore`  
-  String or Array of Strings of properties that will not be encrypted.  
-- `options.digest`  
-  Any of `sha1`, `sha256`, `sha512` (default).
-- `options.algorithm`
-  Valid options are `chacha20` and `aes-gcm` (default).
-- `iterations`
-  How many iterations of pbkdf2 to perform, defaults to 100000 (1000 in older versions).
-- `key`
-  If passed a 32 byte buffer then this will be used as the key instead of it being generated from the password. **Warning** this buffer will be randomized when encryption is removed so pass in a copy of the buffer if that will be a problem.
-- `password`
-  You can pass the options object as the first param if you really want and pass in the password in as an option.
-- `cb`
-  A function you can pass in to get the derived key back called with 2 parameters, an error if there is one and the key if no error.  **Warning** this buffer will be randomized when encryption is removed copy it or convert it to a string if that will be a problem.
+You may also pass an options object as the first parameter, like so:
+
+```javascript
+db.crypto({ password, ignore: [...] })
+```
 
 ### db.removeCrypto()
 
-Disables encryption on the database and randomizes the key buffer.
+Disables encryption on the database and forgets your password.
 
-Details
-===
+## Details
 
-If you replicate to another database, it will decrypt before sending it to
-the external one. So make sure that one also has a password set as well if you want
-it encrypted too.
+If you replicate to another database, Crypto-Pouch will decrypt documents before
+sending them to the target database. Documents received through replication will
+be encrypted before being saved to disk.
 
-If you change the name of a document, it will throw an error when you try
+If you change the ID of a document, Crypto-Pouch will throw an error when you try
 to decrypt it. If you manually move a document from one database to another,
-it will not decrypt correctly.  If you need to decrypt it a file manually
-you will find a local doc named `_local/crypto` in the database. This doc has
-fields named `salt` which is a hex-encoded buffer, `digest` which is a string, `iterations` which is an integer to use and `algo` which is the encryption algorithm. Run pbkdf2 your password with the
-salt, digest and iterations values from that document as the parameters generate
-a 32 byte (256 bit) key; that is the key for decoding documents.  If digest, iterations, or algo are not on the local document due to it being created with an older version of the library, use 'sha256', 1000, and 'chacha20' respectively.
+it will not decrypt correctly.
 
-Each document has 3 relevant fields: `data`, `nonce`, and `tag`.
-`nonce` is the initialization vector to give to the encryption algorithm in addition to the key
-you generated. Pass the document `_id` as additional authenticated data and the tag
-as the auth tag and then decrypt the data.  If it throws an error, then you either
-screwed up or somebody modified the data.
+Encrypted documents have only one custom property, `payload`, which contains the
+encrypted contents of the unencrypted document. So, `{ hello: 'world' }` becomes
+`{ payload: '...' }`. This `payload` value is produced by [garbados-crypt](https://github.com/garbados/crypt#garbados-crypt); see that library for more details.
 
-Examples
-===
+## Development
 
-Derive key from password and salt
----
+First, get the source:
 
-```js
-db.get('_local/crypto').then(function (doc) {
-  return new Promise(function (resolve, reject) {
-    crypto.pbkdf2(password, doc.salt, doc.iterations, 256/8, doc.digest, function (err, key) {
-      if (err) {
-        return reject(err);
-      }
-      resolve(key);
-    });
-  });
-}).then(function (key) {
-  // you have the key
-});
+```bash
+$ git clone git@github.com:calvinmetcalf/crypto-pouch.git
+$ cd crypto-pouch
+$ npm i
 ```
 
-Decrypt a document encrypted with chacha
----
+Use the test suite:
 
-```js
-var chacha = require('chacha');
-
-db.get(id).then(function (doc) {
-  var decipher = chacha.createDecipher(key, new Buffer(doc.nonce, 'hex'));
-  decipher.setAAD(new Buffer(doc._id));
-  decipher.setAuthTag(new Buffer(doc.tag, 'hex'));
-  var out = decipher.update(new Buffer(doc.data, 'hex')).toString();
-  decipher.final();
-  // parse it AFTER calling final
-  // you don't want to parse it if it has been manipulated
-  out = JSON.parse(out);
-  out._id = doc._id;
-  out._rev = doc._rev;
-  return out;
-});
+```bash
+$ npm test
 ```
 
-Decrypt a document encrypted with aes-gcm
----
+*When contributing patches, be a good neighbor and include tests!*
 
-```js
-var decrypt = require('native-crypto/decrypt');
+## License
 
-db.get(id).then(function (doc) {
-  var encryptedData =  Buffer.concat([
-    new Buffer(doc.data, 'hex'),
-    new Buffer(doc.tag, 'hex')
-  ]);
-  return decrypt(key, new Buffer(doc.nonce, 'hex'), encryptedData, new Buffer(doc._id)).then(function (resp) {
-    var out = JSON.parse(resp.toString());
-    out._id = doc._id;
-    out._rev = doc._rev;
-    return out;
-  });
-});
-```
+See [LICENSE](./LICENSE).
