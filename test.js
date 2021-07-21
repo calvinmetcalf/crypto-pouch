@@ -20,17 +20,9 @@ const ATTACHMENTS = {
   }
 }
 
-function getPouchDB () {
-  if (process.env.USE_COUCH && process.env.COUCH_URL) {
-    return new PouchDB(`${process.env.COUCH_URL}/${NAME}`)
-  } else {
-    return new PouchDB(NAME, { db: memdown })
-  }
-}
-
 describe('crypto-pouch', function () {
   beforeEach(function () {
-    this.db = getPouchDB()
+    this.db = new PouchDB(NAME, { db: memdown })
     this.db.crypto(PASSWORD)
   })
 
@@ -127,5 +119,13 @@ describe('crypto-pouch', function () {
     this.db.removeCrypto()
     this.db.crypto({ password: PASSWORD })
     await this.db.put(DOCS[0])
+  })
+
+  it('should fail to init with http adapter', async function () {
+    const db = new PouchDB('http://localhost:5984')
+    assert.throws(
+      () => { db.crypto(PASSWORD) },
+      new Error('crypto-pouch does not work with pouchdb\'s http adapter. Use a local adapter instead.')
+    )
   })
 })

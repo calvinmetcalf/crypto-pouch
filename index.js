@@ -3,9 +3,14 @@ const { transform } = require('transform-pouch')
 
 const IGNORE = ['_id', '_rev', '_deleted', '_conflicts']
 
+const NO_COUCH = 'crypto-pouch does not work with pouchdb\'s http adapter. Use a local adapter instead.'
+
 module.exports = {
   transform,
   crypto: function (password, options = {}) {
+    if (this.adapter === 'http') {
+      throw new Error(NO_COUCH)
+    }
     if (typeof password === 'object') {
       // handle `db.crypto({ password, ...options })`
       options = password
