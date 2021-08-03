@@ -41,6 +41,17 @@ describe('crypto-pouch', function () {
     assert.notEqual(encrypted.hello, doc.hello)
   })
 
+  it('should not encrypt documents after crypto is removed', async function () {
+    const [doc1, doc2] = DOCS.slice(0, 2)
+    await this.db.put(doc1)
+    this.db.removeCrypto()
+    await this.db.put(doc2)
+    const encrypted = await this.db.get(doc1._id)
+    assert.notEqual(encrypted.hello, doc1.hello)
+    const decrypted = await this.db.get(doc2._id)
+    assert.equal(decrypted.hello, doc2.hello)
+  })
+
   it('should fail when using a bad password', async function () {
     await this.db.put({ _id: 'a', hello: 'world' })
     this.db.removeCrypto()
