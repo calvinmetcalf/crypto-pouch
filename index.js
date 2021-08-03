@@ -7,7 +7,7 @@ const NO_COUCH = 'crypto-pouch does not work with pouchdb\'s http adapter. Use a
 
 module.exports = {
   transform,
-  crypto: function (password, options = {}) {
+  crypto: async function (password, options = {}) {
     if (this.adapter === 'http') {
       throw new Error(NO_COUCH)
     }
@@ -15,11 +15,23 @@ module.exports = {
       // handle `db.crypto({ password, ...options })`
       options = password
       password = password.password
+      delete options.password
     }
     // setup ignore list
     this._ignore = IGNORE.concat(options.ignore || [])
     // setup crypto helper
-    this._crypt = new Crypt(password)
+    try {
+      const { exportString } = await this.get('_local/crypto')
+      this._crypt = await Crypt.import(password, exportString)
+    } catch (err) {
+      if (err.status === 404) {
+        this._crypt = new Crypt(password)
+        const exportString = await this._crypt.export()
+        await this.put({ _id: '_local/crypto', exportString })
+      } else {
+        throw err
+      }
+    }
     // instrument document transforms
     this.transform({
       incoming: async (doc) => {

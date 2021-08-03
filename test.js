@@ -21,9 +21,9 @@ const ATTACHMENTS = {
 }
 
 describe('crypto-pouch', function () {
-  beforeEach(function () {
+  beforeEach(async function () {
     this.db = new PouchDB(NAME, { db: memdown })
-    this.db.crypto(PASSWORD)
+    await this.db.crypto(PASSWORD)
   })
 
   afterEach(async function () {
@@ -55,9 +55,8 @@ describe('crypto-pouch', function () {
   it('should fail when using a bad password', async function () {
     await this.db.put({ _id: 'a', hello: 'world' })
     this.db.removeCrypto()
-    this.db.crypto(BAD_PASS)
     try {
-      await this.db.get('a')
+      await this.db.crypto(BAD_PASS)
       throw new Error('read succeeded but should have failed')
     } catch (error) {
       assert.equal(error.message, 'Could not decrypt!')
@@ -108,7 +107,7 @@ describe('crypto-pouch', function () {
 
   it('should ignore attachments when so instructed', async function () {
     this.db.removeCrypto()
-    this.db.crypto(PASSWORD, { ignore: '_attachments' })
+    await this.db.crypto(PASSWORD, { ignore: '_attachments' })
     const doc = { ...DOCS[0], _attachments: ATTACHMENTS }
     await this.db.put(doc)
   })
@@ -128,7 +127,7 @@ describe('crypto-pouch', function () {
 
   it('should accept crypto params as an object', async function () {
     this.db.removeCrypto()
-    this.db.crypto({ password: PASSWORD })
+    await this.db.crypto({ password: PASSWORD })
     const doc = DOCS[0]
     await this.db.put(doc)
     const { hello } = await this.db.get(doc._id)
@@ -137,8 +136,8 @@ describe('crypto-pouch', function () {
 
   it('should fail to init with http adapter', async function () {
     const db = new PouchDB('http://localhost:5984')
-    assert.throws(
-      () => { db.crypto(PASSWORD) },
+    assert.rejects(
+      async () => { await db.crypto(PASSWORD) },
       new Error('crypto-pouch does not work with pouchdb\'s http adapter. Use a local adapter instead.')
     )
   })

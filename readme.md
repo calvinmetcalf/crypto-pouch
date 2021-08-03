@@ -13,7 +13,7 @@ PouchDB.plugin(require('crypto-pouch'))
 const db = new PouchDB('my_db')
 
 // init; after this, docs will be transparently en/decrypted
-db.crypto(password)
+db.crypto(password).then(() => { ... })
 
 // disables transparent en/decryption,
 // though encrypted docs remain encrypted
@@ -36,7 +36,7 @@ $ npm install crypto-pouch
 
 ## Usage
 
-### db.crypto(password [, options])
+### async db.crypto(password [, options])
 
 Set up encryption on the database.
 
@@ -46,7 +46,9 @@ Set up encryption on the database.
 You may also pass an options object as the first parameter, like so:
 
 ```javascript
-db.crypto({ password, ignore: [...] })
+db.crypto({ password, ignore: [...] }).then(() => {
+  // database will now encrypt writes and decrypt reads
+})
 ```
 
 ### db.removeCrypto()
