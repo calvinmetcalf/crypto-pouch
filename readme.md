@@ -13,11 +13,13 @@ PouchDB.plugin(require('crypto-pouch'))
 const db = new PouchDB('my_db')
 
 // init; after this, docs will be transparently en/decrypted
-db.crypto(password).then(() => { ... })
-
-// disables transparent en/decryption,
-// though encrypted docs remain encrypted
-db.removeCrypto()
+db.crypto(password).then(() => {
+  // db will now transparently encrypt writes and decrypt reads
+  await db.put({ ... })
+  // you can disable transparent en/decryption,
+  // though encrypted docs remain encrypted
+  db.removeCrypto()
+})
 ```
 
 Crypto-Pouch encrypts documents using [TweetNaCl.js](https://github.com/dchest/tweetnacl-js), an [audited](https://cure53.de/tweetnacl.pdf) encryption library. It uses the *xsalsa20-poly1305* algorithm.
