@@ -141,4 +141,25 @@ describe('crypto-pouch', function () {
       new Error('crypto-pouch does not work with pouchdb\'s http adapter. Use a local adapter instead.')
     )
   })
+
+  describe('concurrency', function () {
+    beforeEach(async function () {
+      this.db1 = new PouchDB(NAME)
+      this.db2 = new PouchDB(NAME)
+    })
+
+    afterEach(async function () {
+      await this.db1.destroy() // also destroys db2 THANKS
+    })
+
+    it('should handle concurrent crypt instances ok', async function () {
+      await Promise.all([
+        this.db1.crypto(PASSWORD),
+        this.db2.crypto(PASSWORD)
+      ])
+      await this.db1.put(DOCS[0])
+      const doc = await this.db2.get(DOCS[0]._id)
+      assert.equal(DOCS[0].hello, doc.hello)
+    })
+  })
 })

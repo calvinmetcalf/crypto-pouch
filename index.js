@@ -1,6 +1,7 @@
 const Crypt = require('garbados-crypt')
 const { transform } = require('transform-pouch')
 
+const LOCAL_ID = '_local/crypto'
 const IGNORE = ['_id', '_rev', '_deleted', '_conflicts']
 
 const NO_COUCH = 'crypto-pouch does not work with pouchdb\'s http adapter. Use a local adapter instead.'
@@ -20,18 +21,36 @@ module.exports = {
     // setup ignore list
     this._ignore = IGNORE.concat(options.ignore || [])
     // setup crypto helper
-    try {
-      const { exportString } = await this.get('_local/crypto')
-      this._crypt = await Crypt.import(password, exportString)
-    } catch (err) {
-      if (err.status === 404) {
-        this._crypt = new Crypt(password)
-        const exportString = await this._crypt.export()
-        await this.put({ _id: '_local/crypto', exportString })
-      } else {
-        throw err
+    const trySetup = async () => {
+      // try saving credentials to a local doc
+      try {
+        // first we try to get saved creds from the local doc
+        const { exportString } = await this.get(LOCAL_ID)
+        this._crypt = await Crypt.import(password, exportString)
+      } catch (err) {
+        // istanbul ignore else
+        if (err.status === 404) {
+          // but if the doc doesn't exist, we do first-time setup
+          this._crypt = new Crypt(password)
+          const exportString = await this._crypt.export()
+          try {
+            await this.put({ _id: LOCAL_ID, exportString })
+          } catch (err2) {
+            // istanbul ignore else
+            if (err2.status === 409) {
+              // if the doc was created while we were setting up,
+              // try setting up again to retrieve the saved credentials.
+              await trySetup()
+            } else {
+              throw err2
+            }
+          }
+        } else {
+          throw err
+        }
       }
     }
+    await trySetup()
     // instrument document transforms
     this.transform({
       incoming: async (doc) => {
