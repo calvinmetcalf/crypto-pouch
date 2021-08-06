@@ -1,185 +1,86 @@
-'use strict';
-var pbkdf2 = require('native-crypto/pbkdf2');
-var randomBytes = require('randombytes');
-var configId = '_local/crypto';
-var chachaHelper = require('./chacha');
-var gcmHelper = require('./gcm');
-var defaultDigest = 'sha256';
-var defaultIterations = 100000;
-var previousIterations = 1000;
-var defaultAlgo = 'aes-gcm';
-var transform = require('transform-pouch').transform;
-var uuid = require('uuid');
-function noop(){}
-function cryptoInit(password, options) {
-  var db = this;
-  var key, cb;
-  var turnedOff = false;
-  var ignore = ['_id', '_rev', '_deleted']
-  if (!options) {
-    options = {};
-  }
-  var algo;
-  if (password && typeof password === 'object') {
-    options = password;
-    password = password.password;
-    delete options.password;
-  }
-  if (options.ignore) {
-    ignore = ignore.concat(options.ignore);
-  }
-  if(typeof options.cb === 'function') {
-    cb = options.cb;
-  } else {
-    cb = noop;
-  }
-  var pending;
-  if (options.key && !Buffer.isBuffer(options.key) && options.key instanceof global.Uint8Array) {
-    options.key = new Buffer(options.key)
-  }
-  if (Buffer.isBuffer(options.key) && options.key.length === 32) {
-    key = options.key;
-    pending = db.get(configId).catch(function () {
-      return {};
-    }).then(function (doc) {
-      algo = setAlgo(doc);
-    });
-  } else {
-    var digest = options.digest || defaultDigest;
-    var iterations = options.iteration || defaultIterations;
-    pending = db.get(configId).then(function (doc){
-      if (!doc.salt) {
-        throw {
-          status: 'invalid',
-          doc: doc
-        };
-      }
-      return doc;
-    }).catch(function (err) {
-      var doc;
-      if (err.status === 404) {
-        doc = {
-          _id: configId,
-          salt: randomBytes(16).toString('hex'),
-          digest: digest,
-          iterations: iterations,
-          algo: options.algorithm || defaultAlgo
-        };
-      } else if (err.status === 'invalid' && err.doc) {
-        doc = err.doc;
-        doc.salt = randomBytes(16).toString('hex');
-        doc.digest = digest;
-        doc.iterations = iterations;
-        doc.algo = options.algorithm || defaultAlgo;
-      }
-      if (doc) {
-        return db.put(doc).then(function () {
-          return doc;
-        });
-      }
-      throw err;
-    }).then(function (doc) {
-      algo = setAlgo(doc);
-      return pbkdf2(password, new Buffer(doc.salt, 'hex'), doc.iterations || options.iteration || previousIterations, 256 / 8, doc.digest || digest);
-    }).then(function (_key) {
-      password = null;
-      if (turnedOff) {
-        randomize(key);
-      } else {
-        key = _key;
-      }
-      process.nextTick(function () {
-        cb(null, key);
-      });
-    }).catch(function (e) {
-      process.nextTick(function (){
-        cb(e);
-      });
-      throw e;
-    });
-  }
-  db.transform({
-    incoming: function (doc) {
-      return pending.then(function () {
-        return encrypt(doc);
-      });
-    },
-    outgoing: function (doc) {
-      return pending.then(function () {
-        return decrypt(doc);
-      });
-    }
-  });
-  db.removeCrypto = function () {
-    if (key) {
-      randomize(key);
-    }
-    turnedOff = true;
-  };
-  function setAlgo(doc) {
-    if (typeof doc.algo !== 'string') {
-      return chachaHelper;
-    } else if (doc.algo.toLowerCase().indexOf('chacha') > -1) {
-      return chachaHelper;
-    } else if (doc.algo.toLowerCase().indexOf('gcm') > -1) {
-      return gcmHelper;
-    } else {
-      throw new Error('invalid algo');
-    }
-  }
-  function encrypt(doc) {
-    var nonce = randomBytes(12)
-    var outDoc = {
-      nonce: nonce.toString('hex')
-    };
-    // for loop performs better than .forEach etc
-    for (var i = 0, len = ignore.length; i < len; i++) {
-      outDoc[ignore[i]] = doc[ignore[i]]
-      delete doc[ignore[i]]
-    }
-    if (!outDoc._id) {
-      outDoc._id = uuid.v4()
-    }
+const Crypt = require('garbados-crypt')
+const { transform } = require('transform-pouch')
 
-    // Encrypting attachments is complicated
-    // https://github.com/calvinmetcalf/crypto-pouch/pull/18#issuecomment-186402231
-    if (doc._attachments) {
-      throw new Error('Attachments cannot be encrypted. Use {ignore: "_attachments"} option')
-    }
+const LOCAL_ID = '_local/crypto'
+const IGNORE = ['_id', '_rev', '_deleted', '_conflicts']
 
-    var data = JSON.stringify(doc);
-    return algo.encrypt(data, key, nonce, new Buffer(outDoc._id)).then(function (resp) {
-      outDoc.tag = resp.tag;
-      outDoc.data = resp.data;
-      return outDoc;
+const NO_COUCH = 'crypto-pouch does not work with pouchdb\'s http adapter. Use a local adapter instead.'
+
+module.exports = {
+  transform,
+  crypto: async function (password, options = {}) {
+    if (this.adapter === 'http') {
+      throw new Error(NO_COUCH)
+    }
+    if (typeof password === 'object') {
+      // handle `db.crypto({ password, ...options })`
+      options = password
+      password = password.password
+      delete options.password
+    }
+    // setup ignore list
+    this._ignore = IGNORE.concat(options.ignore || [])
+    // setup crypto helper
+    const trySetup = async () => {
+      // try saving credentials to a local doc
+      try {
+        // first we try to get saved creds from the local doc
+        const { exportString } = await this.get(LOCAL_ID)
+        this._crypt = await Crypt.import(password, exportString)
+      } catch (err) {
+        // istanbul ignore else
+        if (err.status === 404) {
+          // but if the doc doesn't exist, we do first-time setup
+          this._crypt = new Crypt(password)
+          const exportString = await this._crypt.export()
+          try {
+            await this.put({ _id: LOCAL_ID, exportString })
+          } catch (err2) {
+            // istanbul ignore else
+            if (err2.status === 409) {
+              // if the doc was created while we were setting up,
+              // try setting up again to retrieve the saved credentials.
+              await trySetup()
+            } else {
+              throw err2
+            }
+          }
+        } else {
+          throw err
+        }
+      }
+    }
+    await trySetup()
+    // instrument document transforms
+    this.transform({
+      incoming: async (doc) => {
+        // if no crypt, ex: after .removeCrypto(), just return the doc
+        if (!this._crypt) { return doc }
+        if (doc._attachments && !this._ignore.includes('_attachments')) {
+          throw new Error('Attachments cannot be encrypted. Use {ignore: "_attachments"} option')
+        }
+        const encrypted = {}
+        for (const key of this._ignore) {
+          encrypted[key] = doc[key]
+        }
+        encrypted.payload = await this._crypt.encrypt(JSON.stringify(doc))
+        return encrypted
+      },
+      outgoing: async (doc) => {
+        // if no crypt, ex: after .removeCrypto(), just return the doc
+        if (!this._crypt) { return doc }
+        const decryptedString = await this._crypt.decrypt(doc.payload)
+        const decrypted = JSON.parse(decryptedString)
+        return decrypted
+      }
     })
-  }
-  function decrypt(doc) {
-    if (turnedOff || !doc.nonce || !doc._id || !doc.tag || !doc.data) {
-      return doc;
-    }
-    return algo.decrypt(new Buffer(doc.data, 'hex'), key, new Buffer(doc.nonce, 'hex'), new Buffer(doc._id), new Buffer(doc.tag, 'hex')).then(function (outData) {
-      var out = JSON.parse(outData);
-      for (var i = 0, len = ignore.length; i < len; i++) {
-        out[ignore[i]] = doc[ignore[i]]
-      }
-      return out;
-    });
+  },
+  removeCrypto: function () {
+    delete this._crypt
   }
 }
 
-function randomize(buf) {
-  var len = buf.length;
-  var data = randomBytes(len);
-  var i = -1;
-  while (++i < len) {
-    buf[i] = data[i];
-  }
-}
-
-exports.transform = transform;
-exports.crypto = cryptoInit;
-
+// istanbul ignore next
 if (typeof window !== 'undefined' && window.PouchDB) {
-  window.PouchDB.plugin(module.exports);
+  window.PouchDB.plugin(module.exports)
 }
