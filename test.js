@@ -154,6 +154,7 @@ describe('crypto-pouch', function () {
     })
 
     it('should handle concurrent crypt instances ok', async function () {
+      this.timeout(10 * 1000)
       await Promise.all([
         this.db1.crypto(PASSWORD),
         this.db2.crypto(PASSWORD)
