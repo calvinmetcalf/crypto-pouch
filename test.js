@@ -55,8 +55,9 @@ describe('crypto-pouch', function () {
   it('should fail when using a bad password', async function () {
     await this.db.put({ _id: 'a', hello: 'world' })
     this.db.removeCrypto()
+    await this.db.crypto(BAD_PASS)
     try {
-      await this.db.crypto(BAD_PASS)
+      await this.db.get('a')
       throw new Error('read succeeded but should have failed')
     } catch (error) {
       assert.equal(error.message, 'Could not decrypt!')
