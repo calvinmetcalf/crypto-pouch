@@ -71,6 +71,10 @@ module.exports = {
         if (!this._crypt) { return doc }
         const decryptedString = await this._crypt.decrypt(doc.payload)
         const decrypted = JSON.parse(decryptedString)
+        for (const key of this._ignore) {
+          // re-attach special fields
+          if (key in doc) decrypted[key] = doc[key]
+        }
         return decrypted
       }
     })

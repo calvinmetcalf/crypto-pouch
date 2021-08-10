@@ -143,6 +143,14 @@ describe('crypto-pouch', function () {
     )
   })
 
+  it('should preserve ignored fields on read', async function () {
+    let doc = DOCS[0]
+    assert(!('_rev' in doc))
+    await this.db.put(doc)
+    doc = await this.db.get(doc._id)
+    assert('_rev' in doc)
+  })
+
   describe('concurrency', function () {
     beforeEach(async function () {
       this.db1 = new PouchDB(NAME)
