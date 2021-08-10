@@ -61,7 +61,8 @@ module.exports = {
         }
         const encrypted = {}
         for (const key of this._ignore) {
-          encrypted[key] = doc[key]
+          // attach ignored fields to encrypted doc
+          if (key in doc) encrypted[key] = doc[key]
         }
         encrypted.payload = await this._crypt.encrypt(JSON.stringify(doc))
         return encrypted
@@ -72,7 +73,7 @@ module.exports = {
         const decryptedString = await this._crypt.decrypt(doc.payload)
         const decrypted = JSON.parse(decryptedString)
         for (const key of this._ignore) {
-          // re-attach special fields
+          // patch decrypted doc with ignored fields
           if (key in doc) decrypted[key] = doc[key]
         }
         return decrypted
