@@ -26,7 +26,7 @@
   "homepage": "https://github.com/calvinmetcalf/crypto-pouch",
   "dependencies": {
     "garbados-crypt": "^3.0.0-beta",
-    "transform-pouch": "^1.1.5"
+    "transform-pouch": "^2.0.0"
   },
   "devDependencies": {
     "browserify": "^17.0.0",

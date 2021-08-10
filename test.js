@@ -143,6 +143,31 @@ describe('crypto-pouch', function () {
     )
   })
 
+  it('should preserve ignored fields on read', async function () {
+    let doc = DOCS[0]
+    assert(!('_rev' in doc))
+    await this.db.put(doc)
+    doc = await this.db.get(doc._id)
+    assert('_rev' in doc)
+  })
+
+  describe('replication', async function () {
+    beforeEach(async function () {
+      this.db2 = new PouchDB(NAME + '2')
+    })
+
+    afterEach(async function () {
+      await this.db2.destroy()
+    })
+
+    it('should replicate ok', async function () {
+      await this.db.bulkDocs(DOCS)
+      await this.db.replicate.to(this.db2)
+      const result = await this.db2.allDocs()
+      assert.equal(result.rows.length, DOCS.length)
+    })
+  })
+
   describe('concurrency', function () {
     beforeEach(async function () {
       this.db1 = new PouchDB(NAME)
