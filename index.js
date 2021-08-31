@@ -31,7 +31,7 @@ module.exports = {
         // istanbul ignore else
         if (err.status === 404) {
           // but if the doc doesn't exist, we do first-time setup
-          this._crypt = new Crypt(password)
+          this._crypt = new Crypt(password, options.salt ? options.salt : null)
           const exportString = await this._crypt.export()
           try {
             await this.put({ _id: LOCAL_ID, exportString })
