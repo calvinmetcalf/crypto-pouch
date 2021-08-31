@@ -1,12 +1,13 @@
 {
   "name": "crypto-pouch",
-  "version": "3.1.3",
+  "version": "4.0.1",
   "description": "encrypted pouchdb/couchdb database",
   "main": "index.js",
   "scripts": {
-    "test": "node test.js | tspec",
-    "build": "browserify ./ >  bundle.js",
-    "min": "browserify ./ | uglifyjs -mc > bundle.min.js"
+    "test": "standard && dependency-check --unused --no-dev . && mocha",
+    "cov": "nyc npm test",
+    "build": "browserify . >  bundle.js",
+    "min": "browserify . | uglifyjs -mc > bundle.min.js"
   },
   "repository": {
     "type": "git",
@@ -24,19 +25,17 @@
   },
   "homepage": "https://github.com/calvinmetcalf/crypto-pouch",
   "dependencies": {
-    "chacha": "^2.1.0",
-    "native-crypto": "^1.5.2",
-    "pouchdb-promise": "^6.1.0",
-    "randombytes": "^2.0.3",
-    "transform-pouch": "^1.1.0",
-    "uuid": "^3.0.1"
+    "garbados-crypt": "^3.0.0-beta",
+    "transform-pouch": "^2.0.0"
   },
   "devDependencies": {
-    "browserify": "^13.0.0",
-    "memdown": "^1.0.0",
-    "pouchdb": "^6.1.0",
-    "tap-spec": "^4.1.1",
-    "tape": "^4.5.1",
-    "uglify-js": "^2.6.2"
+    "browserify": "^17.0.0",
+    "dependency-check": "^4.1.0",
+    "memdown": "^6.0.0",
+    "mocha": "^8.3.2",
+    "nyc": "^15.1.0",
+    "pouchdb": "^7.2.2",
+    "standard": "^16.0.3",
+    "uglify-js": "^3.13.5"
   }
 }
