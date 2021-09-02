@@ -19,6 +19,10 @@ const ATTACHMENTS = {
     data: 'TGVnZW5kYXJ5IGhlYXJ0cywgdGVhciB1cyBhbGwgYXBhcnQKTWFrZSBvdXIgZW1vdGlvbnMgYmxlZWQsIGNyeWluZyBvdXQgaW4gbmVlZA=='
   }
 }
+const SALT = new Uint16Array([
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+])
+const LOCAL_ID = '_local/crypto'
 
 describe('crypto-pouch', function () {
   beforeEach(async function () {
@@ -187,6 +191,42 @@ describe('crypto-pouch', function () {
       await this.db1.put(DOCS[0])
       const doc = await this.db2.get(DOCS[0]._id)
       assert.equal(DOCS[0].hello, doc.hello)
+    })
+  })
+
+  describe('salt option', function () {
+    beforeEach(async function () {
+      this.db1 = new PouchDB(NAME)
+      this.db2 = new PouchDB(NAME)
+    })
+
+    afterEach(async function () {
+      await this.db1.destroy() // also destroys db2 as it has the same name
+    })
+
+    it('should produce the same encrypted result with the same salt and password', async function () {
+      // Populate the databases with a test document
+      this.timeout(10 * 1000)
+      await this.db1.crypto({
+        password: PASSWORD,
+        salt: SALT
+      })
+      await this.db1.put(DOCS[0])
+      const doc1 = await this.db1.get(DOCS[0]._id)
+
+      // Delete the local export key row that contains the final encryption key
+      const exportKeyRow = await this.db1.get(LOCAL_ID)
+      await this.db1.remove(exportKeyRow)
+
+      // Initialize a new database instance with the same password and salt
+      await this.db2.crypto({
+        password: PASSWORD,
+        salt: SALT
+      })
+
+      // Verify the test document can be fetched, indicating the encryption has worked as expected
+      const doc2 = await this.db2.get(DOCS[0]._id)
+      assert.equal(doc1.hello, doc2.hello, 'Document decrypted correctly')
     })
   })
 })
