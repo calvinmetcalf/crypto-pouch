@@ -21,7 +21,7 @@ module.exports = {
     // setup ignore list
     this._ignore = IGNORE.concat(options.ignore || [])
     // setup crypto helper
-    this._crypt = new Crypt(password, options.salt ? options.salt : null)
+    this._crypt = new Crypt(password, options.salt ? options.salt : null, options)
     // instrument document transforms
     this.transform({
       incoming: async (doc) => {
