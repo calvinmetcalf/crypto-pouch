@@ -35,6 +35,11 @@ This plugin is hosted on [npm](http://npmjs.com/). To install it in your project
 ```bash
 $ npm install crypto-pouch
 ```
+Using Typescript? Install the type definitions:
+
+```bash
+$ npm install --save-dev @types/crypto-pouch
+```
 
 ## Usage
 
