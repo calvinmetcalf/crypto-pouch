@@ -49,6 +49,7 @@ Set up encryption on the database.
 
 - `password`: A string password, used to encrypt documents. Make sure it's good!
 - `options.ignore`: Array of strings of properties that will not be encrypted.
+- `options.salt`: A string salt, used to manually specify a salt. This will be combined with the `password` to generate the encryption key. Using the same `salt` and `password` for data encrypted across multiple databases will result in the same encrypted output.
 
 You may also pass an options object as the first parameter, like so:
 
