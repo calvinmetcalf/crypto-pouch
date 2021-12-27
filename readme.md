@@ -64,11 +64,11 @@ Disables encryption on the database and forgets your password.
 
 ### db.disableCrypto()
 
-Disable encryption on the database but keep the password if we only want to temporarily disable it. It can be enabled back later with `.enableCrypto()`.
+Disables encryption on the database but keeps the password if we only want to temporarily disable it. It can be enabled back later with `.enableCrypto()`.
 
 ### db.enableCrypto()
 
-Enable the encryption back.
+Enables the encryption back.
 
 ## Details
 
