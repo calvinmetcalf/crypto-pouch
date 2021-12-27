@@ -62,6 +62,14 @@ db.crypto({ password, ignore: [...] }).then(() => {
 
 Disables encryption on the database and forgets your password.
 
+### db.disableCrypto()
+
+Disable encryption on the database but keep the password if we only want to temporarily disable it. It can be enabled back later with `.enableCrypto()`.
+
+### db.enableCrypto()
+
+Enable the encryption back.
+
 ## Details
 
 If you replicate to another database, Crypto-Pouch will decrypt documents before

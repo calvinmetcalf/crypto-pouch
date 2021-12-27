@@ -51,11 +51,13 @@ module.exports = {
       }
     }
     await trySetup()
+    this._isCryptoEnabled = true
+    if (this._isCryptoSetOnce === true) return
     // instrument document transforms
     this.transform({
       incoming: async (doc) => {
         // if no crypt, ex: after .removeCrypto(), just return the doc
-        if (!this._crypt) { return doc }
+        if (!this._crypt || !this._isCryptoEnabled) { return doc }
         if (doc._attachments && !this._ignore.includes('_attachments')) {
           throw new Error('Attachments cannot be encrypted. Use {ignore: "_attachments"} option')
         }
@@ -69,7 +71,7 @@ module.exports = {
       },
       outgoing: async (doc) => {
         // if no crypt, ex: after .removeCrypto(), just return the doc
-        if (!this._crypt) { return doc }
+        if (!this._crypt || !this._isCryptoEnabled) { return doc }
         const decryptedString = await this._crypt.decrypt(doc.payload)
         const decrypted = JSON.parse(decryptedString)
         for (const key of this._ignore) {
@@ -79,9 +81,18 @@ module.exports = {
         return decrypted
       }
     })
+    this._isCryptoSetOnce = true
   },
   removeCrypto: function () {
     delete this._crypt
+    // Reset enabled for next call
+    this._isCryptoEnabled = true
+  },
+  enableCrypto: function () {
+    this._isCryptoEnabled = true
+  },
+  disableCrypto: function () {
+    this._isCryptoEnabled = false
   }
 }
 
