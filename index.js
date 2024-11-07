@@ -70,6 +70,7 @@ module.exports = {
       outgoing: async (doc) => {
         // if no crypt, ex: after .removeCrypto(), just return the doc
         if (!this._crypt) { return doc }
+        if (!doc.payload) { return doc }
         const decryptedString = await this._crypt.decrypt(doc.payload)
         const decrypted = JSON.parse(decryptedString)
         for (const key of this._ignore) {
