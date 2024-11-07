@@ -1,6 +1,6 @@
 {
   "name": "crypto-pouch",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "encrypted pouchdb/couchdb database",
   "main": "index.js",
   "scripts": {
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/calvinmetcalf/crypto-pouch.git"
+    "url": "git+https://github.com/calvinmetcalf/crypto-pouch.git"
   },
   "keywords": [
     "pouchdb",
@@ -19,6 +19,9 @@
     "encrypted"
   ],
   "author": "Calvin Metcalf",
+  "contributors": [
+    "Diana Belle <garbados@gmail.com>"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/calvinmetcalf/crypto-pouch/issues"
